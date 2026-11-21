@@ -1,0 +1,426 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import { AlertTriangle, CheckCircle2 } from "lucide-react";
+import { formatAssetTypeLabel, formatCurrency, formatPercent } from "@/lib/analytics/parity";
+import type { OverviewResponse } from "@/lib/cmc/types";
+
+interface PortfolioLabViewProps {
+  overview: OverviewResponse;
+  onInspectRwa: (rwaId: number) => void;
+}
+
+interface HoldingInput {
+  id: string;
+  sleeve: "crypto" | "rwa";
+  symbol: string;
+  name: string;
+  assetClass: string;
+  price: number;
+  quantity: number;
+  rwaId?: number;
+}
+
+const PRESETS: Record<string, { label: string; desc: string; quantities: Record<string, number> }> = {
+  gold_hedge: {
+    label: "Gold-Hedged Crypto",
+    desc: "60% core crypto + 40% tokenized gold & T-bills",
+    quantities: { BTC: 0.45, ETH: 6, SOL: 25, GOLD: 3.5, USTB: 120, NVDA: 20, SPY: 10 },
+  },
+  treasury_barbell: {
+    label: "Treasury Barbell",
+    desc: "Yield-heavy sovereign RWA base with BTC/ETH upside",
+    quantities: { BTC: 0.25, ETH: 4, USDT: 5000, USTB: 350, GOLD: 2, SPY: 15 },
+  },
+  ai_equities: {
+    label: "AI & Equities Blend",
+    desc: "On-chain tech equities + major Layer-1s",
+    quantities: { BTC: 0.3, ETH: 5, SOL: 40, NVDA: 60, AAPL: 25, TSLA: 15, SPY: 12 },
+  },
+};
+
+const CLASS_COLORS: Record<string, string> = {
+  Crypto: "#38bdf8",
+  Commodities: "#eab308",
+  "Gov Securities": "#10b981",
+  Equities: "#f97316",
+  ETFs: "#e2e8f0",
+  "FX / Currencies": "#94a3b8",
+  "Real Estate": "#cbd5e1",
+};
+
+export function PortfolioLabView({ overview, onInspectRwa }: PortfolioLabViewProps) {
+  const [activePreset, setActivePreset] = useState<string>("gold_hedge");
+  const [quantities, setQuantities] = useState<Record<string, number>>(
+    PRESETS.gold_hedge.quantities
+  );
+
+  const availablePositions = useMemo<HoldingInput[]>(() => {
+    const cryptoRows: HoldingInput[] = overview.cryptoBenchmarks.map((c) => ({
+      id: `crypto-${c.symbol}`,
+      sleeve: "crypto",
+      symbol: c.symbol,
+      name: c.name,
+      assetClass: "Crypto",
+      price: c.price,
+      quantity: quantities[c.symbol] ?? 0,
+    }));
+
+    const rwaRows: HoldingInput[] = overview.rwaAssets.slice(0, 8).map((r) => ({
+      id: `rwa-${r.rwa_id}`,
+      sleeve: "rwa",
+      symbol: r.symbol,
+      name: r.name,
+      assetClass: formatAssetTypeLabel(r.asset_type),
+      price: r.average_tokenized_price,
+      quantity: quantities[r.symbol] ?? 0,
+      rwaId: r.rwa_id,
+    }));
+
+    return [...cryptoRows, ...rwaRows];
+  }, [overview.cryptoBenchmarks, overview.rwaAssets, quantities]);
+
+  const portfolio = useMemo(() => {
+    const valued = availablePositions.map((p) => ({
+      ...p,
+      valueUsd: Math.max(0, p.quantity) * p.price,
+    }));
+
+    const totalNav = valued.reduce((sum, p) => sum + p.valueUsd, 0);
+    const cryptoNav = valued
+      .filter((p) => p.sleeve === "crypto")
+      .reduce((sum, p) => sum + p.valueUsd, 0);
+    const rwaNav = valued
+      .filter((p) => p.sleeve === "rwa")
+      .reduce((sum, p) => sum + p.valueUsd, 0);
+
+    const cryptoPct = totalNav > 0 ? (cryptoNav / totalNav) * 100 : 0;
+    const rwaPct = totalNav > 0 ? (rwaNav / totalNav) * 100 : 0;
+
+    const byClassMap = new Map<string, number>();
+    for (const p of valued) {
+      if (p.valueUsd <= 0) continue;
+      byClassMap.set(p.assetClass, (byClassMap.get(p.assetClass) ?? 0) + p.valueUsd);
+    }
+
+    const byClass = Array.from(byClassMap.entries())
+      .map(([label, value]) => ({
+        label,
+        value,
+        pct: totalNav > 0 ? (value / totalNav) * 100 : 0,
+        color: CLASS_COLORS[label] ?? "#94a3b8",
+      }))
+      .sort((a, b) => b.value - a.value);
+
+    const activeRwaPositions = valued.filter((p) => p.sleeve === "rwa" && p.valueUsd > 0);
+    const largestRwa = [...activeRwaPositions].sort((a, b) => b.valueUsd - a.valueUsd)[0];
+    const largestRwaShareOfRwa =
+      largestRwa && rwaNav > 0 ? (largestRwa.valueUsd / rwaNav) * 100 : 0;
+
+    return {
+      valued,
+      totalNav,
+      cryptoNav,
+      rwaNav,
+      cryptoPct,
+      rwaPct,
+      byClass,
+      largestRwa,
+      largestRwaShareOfRwa,
+    };
+  }, [availablePositions]);
+
+  function applyPreset(key: string) {
+    setActivePreset(key);
+    setQuantities(PRESETS[key].quantities);
+  }
+
+  function updateQty(symbol: string, raw: string) {
+    const num = Number(raw);
+    setActivePreset("custom");
+    setQuantities((prev) => ({
+      ...prev,
+      [symbol]: Number.isFinite(num) && num >= 0 ? num : 0,
+    }));
+  }
+
+  return (
+    <div className="space-y-5">
+      <div className="flex flex-col justify-between gap-3 md:flex-row md:items-end">
+        <div>
+          <h1 className="text-xl font-semibold tracking-tight text-slate-50">
+            Hybrid Crypto + Tokenized TradFi Portfolio Lab
+          </h1>
+          <p className="mt-1 text-sm text-slate-400">
+            Combine native crypto assets (
+            <code className="text-slate-300">/v3/cryptocurrency/quotes/latest</code>) and tokenized
+            RWAs (<code className="text-slate-300">/v5/real-world-assets/assets/list</code>) in a
+            single risk view alongside live CMC Fear &amp; Greed context.
+          </p>
+        </div>
+
+        <div className="flex flex-wrap gap-1.5">
+          {Object.entries(PRESETS).map(([key, preset]) => (
+            <button
+              key={key}
+              id={`preset-${key}`}
+              type="button"
+              onClick={() => applyPreset(key)}
+              className={`rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                activePreset === key
+                  ? "bg-[#eab308] text-[#090c10]"
+                  : "border border-slate-200/[0.1] bg-[#10151d] text-slate-300 hover:border-slate-200/[0.2]"
+              }`}
+            >
+              {preset.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Top Portfolio Summary Strip */}
+      <section className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="terminal-panel rounded-lg p-4">
+          <div className="text-[11px] font-medium tracking-wider text-slate-400 uppercase">
+            Combined Portfolio NAV
+          </div>
+          <div className="num mt-2 text-2xl font-semibold text-slate-50">
+            {formatCurrency(portfolio.totalNav)}
+          </div>
+          <div className="mt-1 text-xs text-slate-500">
+            Real-time USD valuation across both sleeves
+          </div>
+        </div>
+
+        <div className="terminal-panel rounded-lg p-4">
+          <div className="text-[11px] font-medium tracking-wider text-slate-400 uppercase">
+            Crypto vs RWA Split
+          </div>
+          <div className="num mt-2 flex items-baseline gap-2 text-2xl font-semibold">
+            <span className="text-sky-400">{portfolio.cryptoPct.toFixed(1)}%</span>
+            <span className="text-sm text-slate-500">/</span>
+            <span className="text-[#eab308]">{portfolio.rwaPct.toFixed(1)}%</span>
+          </div>
+          <div className="mt-2 flex h-1.5 w-full overflow-hidden rounded-full bg-slate-800">
+            <div className="bg-sky-400" style={{ width: `${portfolio.cryptoPct}%` }} />
+            <div className="bg-[#eab308]" style={{ width: `${portfolio.rwaPct}%` }} />
+          </div>
+        </div>
+
+        <div className="terminal-panel rounded-lg p-4">
+          <div className="text-[11px] font-medium tracking-wider text-slate-400 uppercase">
+            Macro Regime &amp; Concentration Audit
+          </div>
+          <div className="mt-2 flex items-start gap-2 text-xs text-slate-300">
+            {portfolio.largestRwaShareOfRwa > 55 ? (
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" />
+            ) : (
+              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />
+            )}
+            <div>
+              {portfolio.largestRwa ? (
+                <span>
+                  Top RWA sleeve holding:{" "}
+                  <strong className="text-slate-100">{portfolio.largestRwa.symbol}</strong> (
+                  <span className="num">{portfolio.largestRwaShareOfRwa.toFixed(0)}%</span> of RWA).
+                  CMC Fear &amp; Greed is{" "}
+                  <span className="num text-slate-100">{overview.fearAndGreed.value}/100</span> (
+                  {overview.fearAndGreed.value_classification}).
+                </span>
+              ) : (
+                <span>Add RWA positions below to hedge native crypto volatility.</span>
+              )}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
+        {/* Left 8 cols: Interactive Position Editor */}
+        <section className="terminal-panel overflow-hidden rounded-lg lg:col-span-8">
+          <div className="flex items-center justify-between border-b border-slate-200/[0.08] px-4 py-3">
+            <h2 className="text-xs font-semibold tracking-wider text-slate-200 uppercase">
+              Portfolio Holdings Editor
+            </h2>
+            <span className="text-xs text-slate-500">Adjust unit quantities to rebalance live</span>
+          </div>
+
+          <div className="terminal-scroll overflow-x-auto">
+            <table className="w-full border-collapse text-left text-xs">
+              <thead>
+                <tr className="border-b border-slate-200/[0.08] bg-[#0c1016] text-[11px] font-medium tracking-wider text-slate-400 uppercase">
+                  <th className="px-4 py-2.5">Asset</th>
+                  <th className="px-4 py-2.5">Sleeve</th>
+                  <th className="px-4 py-2.5 text-right">Live Price</th>
+                  <th className="px-4 py-2.5 text-right">Units</th>
+                  <th className="px-4 py-2.5 text-right">Position Value</th>
+                  <th className="px-4 py-2.5 text-right">Weight</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-200/[0.05]">
+                {portfolio.valued.map((row) => {
+                  const weight = portfolio.totalNav > 0 ? (row.valueUsd / portfolio.totalNav) * 100 : 0;
+                  return (
+                    <tr key={row.id} className="hover:bg-[#161e29]">
+                      <td className="px-4 py-2.5">
+                        <div className="flex items-center gap-2">
+                          <span className="num font-semibold text-slate-100">{row.symbol}</span>
+                          {row.rwaId ? (
+                            <button
+                              type="button"
+                              onClick={() => onInspectRwa(row.rwaId!)}
+                              className="text-slate-400 hover:text-[#eab308] hover:underline"
+                            >
+                              {row.name}
+                            </button>
+                          ) : (
+                            <span className="text-slate-400">{row.name}</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <span
+                          className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${
+                            row.sleeve === "crypto"
+                              ? "bg-sky-500/15 text-sky-300"
+                              : "bg-[#eab308]/15 text-[#eab308]"
+                          }`}
+                        >
+                          {row.assetClass}
+                        </span>
+                      </td>
+                      <td className="num px-4 py-2.5 text-right text-slate-200">
+                        {formatCurrency(row.price)}
+                      </td>
+                      <td className="px-4 py-2 text-right">
+                        <input
+                          id={`qty-${row.symbol}`}
+                          type="number"
+                          min="0"
+                          step="any"
+                          value={row.quantity}
+                          onChange={(e) => updateQty(row.symbol, e.target.value)}
+                          className="num w-24 rounded border border-slate-200/[0.12] bg-[#0a0e14] px-2 py-1 text-right text-xs text-slate-100 focus:border-[#eab308]/60 focus:outline-none"
+                        />
+                      </td>
+                      <td className="num px-4 py-2.5 text-right font-medium text-slate-100">
+                        {formatCurrency(row.valueUsd)}
+                      </td>
+                      <td className="num px-4 py-2.5 text-right text-slate-400">
+                        {formatPercent(weight)}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        {/* Right 4 cols: Asset-Class Breakdown & SVG Donut */}
+        <section className="terminal-panel flex flex-col justify-between rounded-lg p-4 lg:col-span-4">
+          <div>
+            <h2 className="border-b border-slate-200/[0.08] pb-3 text-xs font-semibold tracking-wider text-slate-200 uppercase">
+              Asset-Class Allocation
+            </h2>
+
+            {/* Clean SVG Ring Chart */}
+            <div className="my-5 flex justify-center">
+              <AllocationDonut segments={portfolio.byClass} totalNav={portfolio.totalNav} />
+            </div>
+
+            <div className="space-y-2.5">
+              {portfolio.byClass.map((seg) => (
+                <div key={seg.label} className="space-y-1 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="flex items-center gap-2 text-slate-200">
+                      <span
+                        className="h-2 w-2 rounded-[2px]"
+                        style={{ backgroundColor: seg.color }}
+                      />
+                      {seg.label}
+                    </span>
+                    <span className="num text-slate-300">
+                      {formatCurrency(seg.value, true)}{" "}
+                      <span className="text-slate-500">({seg.pct.toFixed(1)}%)</span>
+                    </span>
+                  </div>
+                  <div className="h-1 w-full overflow-hidden rounded-full bg-slate-800">
+                    <div
+                      className="h-full rounded-full"
+                      style={{ width: `${Math.max(seg.pct, 1.5)}%`, backgroundColor: seg.color }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="mt-5 rounded border border-slate-200/[0.08] bg-[#0c1016] p-3 text-[11px] leading-relaxed text-slate-400">
+            Valuations use live USD prices from CMC{" "}
+            <code className="text-slate-300">/v3/cryptocurrency/quotes/latest</code> (by stable CMC
+            ID) and <code className="text-slate-300">/v5/real-world-assets/assets/list</code>.
+          </div>
+        </section>
+      </div>
+    </div>
+  );
+}
+
+function AllocationDonut({
+  segments,
+  totalNav,
+}: {
+  segments: Array<{ label: string; value: number; pct: number; color: string }>;
+  totalNav: number;
+}) {
+  const radius = 56;
+  const circumference = 2 * Math.PI * radius;
+  const arcs = segments.reduce<
+    Array<{ label: string; color: string; strokeDasharray: string; strokeDashoffset: number }>
+  >((acc, seg) => {
+    const priorPct = acc.reduce((sum, item) => sum + Number(item.strokeDasharray.split(" ")[0]), 0);
+    const len = (seg.pct / 100) * circumference;
+    acc.push({
+      label: seg.label,
+      color: seg.color,
+      strokeDasharray: `${len} ${circumference - len}`,
+      strokeDashoffset: -priorPct,
+    });
+    return acc;
+  }, []);
+
+  return (
+    <div className="relative flex h-36 w-36 items-center justify-center">
+      <svg viewBox="0 0 140 140" className="h-full w-full -rotate-90">
+        <circle
+          cx="70"
+          cy="70"
+          r={radius}
+          fill="none"
+          stroke="rgba(148,163,184,0.12)"
+          strokeWidth="12"
+        />
+        {arcs.map((arc) => (
+          <circle
+            key={arc.label}
+            cx="70"
+            cy="70"
+            r={radius}
+            fill="none"
+            stroke={arc.color}
+            strokeWidth="12"
+            strokeDasharray={arc.strokeDasharray}
+            strokeDashoffset={arc.strokeDashoffset}
+          />
+        ))}
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+        <span className="text-[10px] tracking-wider text-slate-500 uppercase">Total NAV</span>
+        <span className="num text-sm font-semibold text-slate-100">
+          {formatCurrency(totalNav, true)}
+        </span>
+      </div>
+    </div>
+  );
+}
