@@ -61,8 +61,20 @@ interface RefreshRequest {
   bypassCache: boolean;
 }
 
-export function ParityLensApp() {
-  const [activeTab, setActiveTab] = useState<ActiveTab>("screener");
+export interface ParityLensAppProps {
+  initialTab?: ActiveTab;
+  initialRwaId?: number;
+  initialIssuerId?: string;
+  initialOpenInspector?: boolean;
+}
+
+export function ParityLensApp({
+  initialTab = "screener",
+  initialRwaId = 1,
+  initialIssuerId = "",
+  initialOpenInspector = false,
+}: ParityLensAppProps = {}) {
+  const [activeTab, setActiveTab] = useState<ActiveTab>(initialTab);
   const [overview, setOverview] = useState<OverviewResponse | null>(null);
   const [overviewLoading, setOverviewLoading] = useState(true);
   const [overviewError, setOverviewError] = useState<string | null>(null);
@@ -72,12 +84,12 @@ export function ParityLensApp() {
   });
 
   const [rwaReq, setRwaReq] = useState<{ rwaId: number; nonce: number; bypassCache: boolean }>({
-    rwaId: 1,
+    rwaId: initialRwaId > 0 ? initialRwaId : 1,
     nonce: 0,
     bypassCache: false,
   });
   const [rwaDetail, setRwaDetail] = useState<RwaDetailResponse | null>(null);
-  const [rwaLoading, setRwaLoading] = useState(false);
+  const [rwaLoading, setRwaLoading] = useState(initialTab === "parity");
   const [rwaError, setRwaError] = useState<string | null>(null);
 
   const [issuerReq, setIssuerReq] = useState<{
@@ -85,16 +97,16 @@ export function ParityLensApp() {
     nonce: number;
     bypassCache: boolean;
   }>({
-    issuerId: "",
+    issuerId: initialIssuerId,
     nonce: 0,
     bypassCache: false,
   });
   const [issuerDetail, setIssuerDetail] = useState<IssuerDetailResponse | null>(null);
-  const [issuerLoading, setIssuerLoading] = useState(false);
+  const [issuerLoading, setIssuerLoading] = useState(initialTab === "issuers" && Boolean(initialIssuerId));
   const [issuerError, setIssuerError] = useState<string | null>(null);
 
   const [traces, setTraces] = useState<ApiTraceEntry[]>([]);
-  const [inspectorOpen, setInspectorOpen] = useState(false);
+  const [inspectorOpen, setInspectorOpen] = useState(initialOpenInspector);
   const [sessionKey, setSessionKey] = useState("");
   const introHidden = useSyncExternalStore(
     subscribeIntroHidden,

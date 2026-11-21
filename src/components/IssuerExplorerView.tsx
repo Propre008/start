@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { AlertTriangle, ArrowUpRight, ExternalLink, RefreshCw, Search } from "lucide-react";
+import { IssuerLogo, TokenLogo } from "@/components/AssetLogo";
 import { formatAssetTypeLabel, formatCurrency } from "@/lib/analytics/parity";
 import type { IssuerDetailResponse, RwaIssuerSummary } from "@/lib/cmc/types";
 
@@ -105,22 +106,25 @@ export function IssuerExplorerView({
                   }`}
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <span
-                      className={`text-xs font-semibold ${
-                        isSelected ? "text-[#eab308]" : "text-slate-100"
-                      }`}
-                    >
-                      {issuer.name}
+                    <span className="flex min-w-0 items-center gap-2.5">
+                      <IssuerLogo name={issuer.name} logoUrl={issuer.logo} size={24} />
+                      <span
+                        className={`truncate text-xs font-semibold ${
+                          isSelected ? "text-[#6188FF]" : "text-white"
+                        }`}
+                      >
+                        {issuer.name}
+                      </span>
                     </span>
-                    <span className="num text-xs text-slate-300">
+                    <span className="num shrink-0 text-xs text-[#C8CEE0]">
                       {issuer.num_tokens.toLocaleString("en-US")}{" "}
                       {issuer.num_tokens === 1 ? "token" : "tokens"}
                     </span>
                   </div>
-                  <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-slate-800">
+                  <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-[#0D1421]">
                     <div
                       className={`h-full rounded-full transition-all ${
-                        isSelected ? "bg-[#eab308]" : "bg-slate-500"
+                        isSelected ? "bg-[#3861FB]" : "bg-[#4B556E]"
                       }`}
                       style={{ width: `${widthPct}%` }}
                     />
@@ -162,12 +166,19 @@ export function IssuerExplorerView({
           ) : (
             <>
               <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-200/[0.08] p-4">
-                <div>
-                  <h2 className="text-base font-semibold text-slate-50">
-                    {issuerDetail.issuer.name}
-                  </h2>
-                  <div className="num mt-1 text-[11px] text-slate-500">
-                    issuer_id: {issuerDetail.issuer.issuer_id}
+                <div className="flex items-center gap-3">
+                  <IssuerLogo
+                    name={issuerDetail.issuer.name}
+                    logoUrl={issuerDetail.issuer.logo}
+                    size={36}
+                  />
+                  <div>
+                    <h2 className="text-base font-semibold text-white">
+                      {issuerDetail.issuer.name}
+                    </h2>
+                    <div className="num mt-0.5 text-[11px] text-[#7C849C]">
+                      issuer_id: {issuerDetail.issuer.issuer_id}
+                    </div>
                   </div>
                 </div>
 
@@ -213,15 +224,15 @@ export function IssuerExplorerView({
                   role="switch"
                   aria-checked={pricedOnly}
                   onClick={() => setPricedOnly((prev) => !prev)}
-                  className={`inline-flex items-center gap-2 rounded-md border px-2.5 py-1 text-[11px] font-medium transition-colors ${
+                  className={`inline-flex items-center gap-2 rounded-lg border px-2.5 py-1 text-[11px] font-medium transition-colors ${
                     pricedOnly
-                      ? "border-[#eab308]/45 bg-[#eab308]/15 text-[#eab308]"
-                      : "border-slate-200/[0.1] bg-[#10151d] text-slate-400 hover:text-slate-200"
+                      ? "border-[#3861FB]/55 bg-[#1E274F] text-[#89A5FF]"
+                      : "border-[#2A3248] bg-[#141A29] text-[#8E96AF] hover:text-white"
                   }`}
                 >
                   <span
                     className={`h-1.5 w-1.5 rounded-full ${
-                      pricedOnly ? "bg-[#eab308]" : "bg-slate-500"
+                      pricedOnly ? "bg-[#3861FB]" : "bg-[#646B80]"
                     }`}
                   />
                   <span>Priced only</span>
@@ -247,8 +258,18 @@ export function IssuerExplorerView({
                         className="group cursor-pointer transition-colors hover:bg-[#161e29]"
                       >
                         <td className="px-4 py-3">
-                          <div className="num font-semibold text-slate-100">{token.symbol}</div>
-                          <div className="text-[11px] text-slate-500">{token.name}</div>
+                          <div className="flex items-center gap-2.5">
+                            <TokenLogo
+                              cryptoId={token.crypto_id}
+                              symbol={token.symbol}
+                              name={token.name}
+                              size={22}
+                            />
+                            <div>
+                              <div className="num font-semibold text-white">{token.symbol}</div>
+                              <div className="text-[11px] text-[#8E96AF]">{token.name}</div>
+                            </div>
+                          </div>
                         </td>
                         <td className="px-4 py-3">
                           <div className="font-medium text-slate-200">

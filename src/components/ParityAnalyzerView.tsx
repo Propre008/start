@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { AlertTriangle, ExternalLink, RefreshCw, ShieldAlert, ShieldCheck } from "lucide-react";
+import { IssuerLogo, RwaLogo, TokenLogo } from "@/components/AssetLogo";
 import {
   formatAssetTypeLabel,
   formatBps,
@@ -87,37 +88,43 @@ export function ParityAnalyzerView({
         </div>
 
         <div className="flex flex-wrap items-center gap-1.5">
-          {rwaAssets.slice(0, 8).map((item) => {
-            const active = item.rwa_id === selectedRwaId;
-            return (
-              <button
-                key={item.rwa_id}
-                id={`select-rwa-${item.rwa_id}`}
-                type="button"
-                onClick={() => onSelectRwa(item.rwa_id)}
-                className={`num rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
-                  active
-                    ? "bg-[#eab308] text-[#090c10]"
-                    : "border border-slate-200/[0.08] bg-[#10151d] text-slate-300 hover:border-slate-200/[0.2] hover:text-white"
-                }`}
-              >
-                {item.symbol}
-              </button>
-            );
-          })}
-          {rwaAssets.length > 8 && (
+          {rwaAssets
+            .filter((item) => typeof item.rwa_id === "number" && item.rwa_id > 0)
+            .slice(0, 8)
+            .map((item) => {
+              const active = item.rwa_id === selectedRwaId;
+              return (
+                <button
+                  key={item.rwa_id}
+                  id={`select-rwa-${item.rwa_id}`}
+                  type="button"
+                  onClick={() => onSelectRwa(item.rwa_id)}
+                  className={`num inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium transition-colors ${
+                    active
+                      ? "bg-[#3861FB] text-white shadow-xs"
+                      : "border border-[#283047] bg-[#141A29] text-[#C8CEE0] hover:border-[#6188FF]/50 hover:text-white"
+                  }`}
+                >
+                  <RwaLogo symbol={item.symbol} assetType={item.asset_type} size={15} />
+                  <span>{item.symbol}</span>
+                </button>
+              );
+            })}
+          {rwaAssets.filter((i) => typeof i.rwa_id === "number" && i.rwa_id > 0).length > 8 && (
             <select
               id="select-rwa-all"
               aria-label="Select any ranked RWA asset"
               value={selectedRwaId}
               onChange={(e) => onSelectRwa(Number(e.target.value))}
-              className="num rounded-md border border-slate-200/[0.12] bg-[#10151d] px-2.5 py-1 text-xs text-slate-200 focus:border-[#eab308]/60 focus:outline-none"
+              className="num rounded-lg border border-[#2B3349] bg-[#141A29] px-2.5 py-1 text-xs text-slate-200 focus:border-[#3861FB] focus:outline-none"
             >
-              {rwaAssets.map((item) => (
-                <option key={item.rwa_id} value={item.rwa_id}>
-                  #{item.rwa_rank} {item.symbol} — {item.name}
-                </option>
-              ))}
+              {rwaAssets
+                .filter((item) => typeof item.rwa_id === "number" && item.rwa_id > 0)
+                .map((item) => (
+                  <option key={item.rwa_id} value={item.rwa_id}>
+                    #{item.rwa_rank} {item.symbol} — {item.name}
+                  </option>
+                ))}
             </select>
           )}
         </div>
@@ -164,8 +171,17 @@ export function ParityAnalyzerView({
               <div className="text-[11px] font-medium tracking-wider text-slate-400 uppercase">
                 Avg Tokenized Price
               </div>
-              <div className="num mt-2 text-2xl font-semibold text-slate-50">
-                {formatCurrency(parity.averagePrice)}
+              <div className="mt-2 flex items-center gap-2.5">
+                <RwaLogo
+                  symbol={quote.symbol}
+                  name={quote.name}
+                  assetType={quote.asset_type}
+                  logoUrl={info?.about?.logo}
+                  size={28}
+                />
+                <div className="num text-2xl font-semibold text-slate-50">
+                  {formatCurrency(parity.averagePrice)}
+                </div>
               </div>
               <div className="mt-1 text-xs text-slate-500">
                 {quote.name} ({quote.symbol}) · {formatAssetTypeLabel(quote.asset_type)}
@@ -277,6 +293,12 @@ export function ParityAnalyzerView({
                     >
                       <div className="col-span-4 sm:col-span-3">
                         <div className="flex items-center gap-2">
+                          <TokenLogo
+                            cryptoId={token.crypto_id}
+                            symbol={token.symbol}
+                            name={token.name}
+                            size={20}
+                          />
                           <span className="num font-semibold text-slate-100">{token.symbol}</span>
                           <span className="truncate text-[11px] text-slate-500">
                             {token.issuer_name}
@@ -347,34 +369,45 @@ export function ParityAnalyzerView({
                       className="transition-colors hover:bg-[#161e29]"
                     >
                       <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium text-slate-100">{t.symbol}</span>
-                          {t.parityStatus === "UNIT_MISMATCH" && (
-                            <span
-                              title="Different denomination/unit scale vs underlying benchmark (excluded from inter-issuer spread)"
-                              className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-medium text-amber-300"
-                            >
-                              Unit-Scaled
-                            </span>
-                          )}
-                          {t.parityStatus === "NO_LIQUIDITY" && (
-                            <span
-                              title="Zero reported market cap and 24h volume (excluded from inter-issuer spread)"
-                              className="rounded bg-slate-700/70 px-1.5 py-0.5 text-[10px] font-medium text-slate-300"
-                            >
-                              No Spot Liq
-                            </span>
-                          )}
+                        <div className="flex items-center gap-2.5">
+                          <TokenLogo
+                            cryptoId={t.crypto_id}
+                            symbol={t.symbol}
+                            name={t.name}
+                            size={24}
+                          />
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="num font-semibold text-white">{t.symbol}</span>
+                              {t.parityStatus === "UNIT_MISMATCH" && (
+                                <span
+                                  title="Different denomination/unit scale vs underlying benchmark (excluded from inter-issuer spread)"
+                                  className="rounded bg-[#F3BA2F]/15 px-1.5 py-0.5 text-[10px] font-medium text-[#F3BA2F]"
+                                >
+                                  Unit-Scaled
+                                </span>
+                              )}
+                              {t.parityStatus === "NO_LIQUIDITY" && (
+                                <span
+                                  title="Zero reported market cap and 24h volume (excluded from inter-issuer spread)"
+                                  className="rounded bg-slate-700/70 px-1.5 py-0.5 text-[10px] font-medium text-slate-300"
+                                >
+                                  No Spot Liq
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-[11px] text-[#8E96AF]">{t.name}</div>
+                          </div>
                         </div>
-                        <div className="text-[11px] text-slate-500">{t.name}</div>
                       </td>
                       <td className="px-4 py-3">
                         <button
                           type="button"
                           onClick={() => onSelectIssuer(t.issuer_id)}
-                          className="text-left text-xs font-medium text-[#eab308] hover:underline"
+                          className="inline-flex items-center gap-2 text-left text-xs font-medium text-[#6188FF] hover:text-white hover:underline"
                         >
-                          {t.issuer_name}
+                          <IssuerLogo name={t.issuer_name} size={18} />
+                          <span>{t.issuer_name}</span>
                         </button>
                       </td>
                       <td className="num px-4 py-3 text-right font-medium text-slate-100">

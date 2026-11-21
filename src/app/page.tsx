@@ -1,5 +1,5 @@
-import { ParityLensApp } from "@/components/ParityLensApp";
+import { LandingPage } from "@/components/LandingPage";
 
 export default function HomePage() {
-  return <ParityLensApp />;
+  return <LandingPage />;
 }

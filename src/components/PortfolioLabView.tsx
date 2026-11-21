@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { AlertTriangle, CheckCircle2, Plus, X } from "lucide-react";
+import { RwaLogo, TokenLogo } from "@/components/AssetLogo";
 import { formatAssetTypeLabel, formatCurrency, formatPercent } from "@/lib/analytics/parity";
 import type { OverviewResponse, RwaAssetType, RwaListItem } from "@/lib/cmc/types";
 
@@ -18,7 +19,9 @@ interface HoldingInput {
   assetClass: string;
   price: number;
   quantity: number;
+  cryptoId?: number;
   rwaId?: number;
+  rwaAssetType?: RwaAssetType;
 }
 
 interface RwaPresetLeg {
@@ -70,13 +73,13 @@ const PRESETS: Record<string, PresetSpec> = {
 };
 
 const CLASS_COLORS: Record<string, string> = {
-  Crypto: "#38bdf8",
-  Commodities: "#eab308",
-  "Gov Securities": "#10b981",
-  Equities: "#f97316",
-  ETFs: "#e2e8f0",
-  "FX / Currencies": "#94a3b8",
-  "Real Estate": "#cbd5e1",
+  Crypto: "#3861FB",
+  Commodities: "#F3BA2F",
+  "Gov Securities": "#16C784",
+  Equities: "#13B2CF",
+  ETFs: "#8A3FFC",
+  "FX / Currencies": "#FF775F",
+  "Real Estate": "#A1A7BB",
 };
 
 function roundPresetUnits(targetUsd: number, price: number): number {
@@ -166,22 +169,26 @@ export function PortfolioLabView({ overview, onInspectRwa }: PortfolioLabViewPro
         assetClass: "Crypto",
         price: c.price,
         quantity: effectiveQuantities[id] ?? 0,
+        cryptoId: c.id,
       };
     });
 
-    const rwaRows: HoldingInput[] = overview.rwaAssets.map((r) => {
-      const id = `rwa-${r.rwa_id}`;
-      return {
-        id,
-        sleeve: "rwa",
-        symbol: r.symbol,
-        name: r.name,
-        assetClass: formatAssetTypeLabel(r.asset_type),
-        price: r.average_tokenized_price,
-        quantity: effectiveQuantities[id] ?? 0,
-        rwaId: r.rwa_id,
-      };
-    });
+    const rwaRows: HoldingInput[] = overview.rwaAssets
+      .filter((r) => typeof r.rwa_id === "number" && r.rwa_id > 0)
+      .map((r) => {
+        const id = `rwa-${r.rwa_id}`;
+        return {
+          id,
+          sleeve: "rwa",
+          symbol: r.symbol,
+          name: r.name,
+          assetClass: formatAssetTypeLabel(r.asset_type),
+          price: r.average_tokenized_price,
+          quantity: effectiveQuantities[id] ?? 0,
+          rwaId: r.rwa_id,
+          rwaAssetType: r.asset_type,
+        };
+      });
 
     return [...cryptoRows, ...rwaRows];
   }, [overview.cryptoBenchmarks, overview.rwaAssets, effectiveQuantities]);
@@ -339,10 +346,10 @@ export function PortfolioLabView({ overview, onInspectRwa }: PortfolioLabViewPro
               type="button"
               onClick={() => applyPreset(key)}
               title={preset.desc}
-              className={`rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors ${
+              className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
                 activePreset === key
-                  ? "bg-[#eab308] text-[#090c10]"
-                  : "border border-slate-200/[0.1] bg-[#10151d] text-slate-300 hover:border-slate-200/[0.2]"
+                  ? "bg-[#3861FB] text-white shadow-xs"
+                  : "border border-[#2A3248] bg-[#141A29] text-[#C8CEE0] hover:border-[#6188FF]/50 hover:text-white"
               }`}
             >
               {preset.label}
@@ -487,18 +494,33 @@ export function PortfolioLabView({ overview, onInspectRwa }: PortfolioLabViewPro
                   return (
                     <tr key={row.id} className="hover:bg-[#161e29]">
                       <td className="px-4 py-2.5">
-                        <div className="flex items-center gap-2">
-                          <span className="num font-semibold text-slate-100">{row.symbol}</span>
+                        <div className="flex items-center gap-2.5">
+                          {row.sleeve === "crypto" ? (
+                            <TokenLogo
+                              cryptoId={row.cryptoId}
+                              symbol={row.symbol}
+                              name={row.name}
+                              size={22}
+                            />
+                          ) : (
+                            <RwaLogo
+                              symbol={row.symbol}
+                              name={row.name}
+                              assetType={row.rwaAssetType}
+                              size={22}
+                            />
+                          )}
+                          <span className="num font-semibold text-white">{row.symbol}</span>
                           {row.rwaId ? (
                             <button
                               type="button"
                               onClick={() => onInspectRwa(row.rwaId!)}
-                              className="text-slate-400 hover:text-[#eab308] hover:underline"
+                              className="text-[#A1A7BB] hover:text-[#6188FF] hover:underline"
                             >
                               {row.name}
                             </button>
                           ) : (
-                            <span className="text-slate-400">{row.name}</span>
+                            <span className="text-[#A1A7BB]">{row.name}</span>
                           )}
                         </div>
                       </td>

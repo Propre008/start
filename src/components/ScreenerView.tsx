@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { ArrowDown, ArrowUp, ArrowUpRight, Search } from "lucide-react";
+import { RwaLogo } from "@/components/AssetLogo";
 import {
   formatAssetTypeLabel,
   formatCurrency,
@@ -22,12 +23,12 @@ type SortKey =
   | "turnover";
 
 const ASSET_TYPE_COLORS: Record<RwaAssetType, string> = {
-  commodity: "#eab308",
-  government_security: "#10b981",
-  currency: "#38bdf8",
-  etf: "#f97316",
-  stock: "#e2e8f0",
-  real_estate: "#94a3b8",
+  commodity: "#F3BA2F",
+  stock: "#3861FB",
+  etf: "#13B2CF",
+  government_security: "#16C784",
+  currency: "#8A3FFC",
+  real_estate: "#FF775F",
 };
 
 const ASSET_TYPES: Array<{ id: "all" | RwaAssetType; label: string }> = [
@@ -244,10 +245,10 @@ export function ScreenerView({ overview, onInspectRwa }: ScreenerViewProps) {
                   id={`filter-class-${t.id}`}
                   type="button"
                   onClick={() => setSelectedType(t.id)}
-                  className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
+                  className={`rounded-lg px-2.5 py-1 text-xs font-medium transition-colors ${
                     active
-                      ? "bg-[#eab308] text-[#090c10]"
-                      : "bg-slate-200/[0.05] text-slate-400 hover:bg-slate-200/[0.09] hover:text-slate-200"
+                      ? "bg-[#3861FB] text-white shadow-xs"
+                      : "bg-[#1C2234] text-[#A1A7BB] hover:bg-[#252C42] hover:text-white"
                   }`}
                 >
                   {t.label}
@@ -323,35 +324,48 @@ export function ScreenerView({ overview, onInspectRwa }: ScreenerViewProps) {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200/[0.05]">
-              {filteredAssets.map((asset) => {
+              {filteredAssets.map((asset, idx) => {
                 const turnover =
                   asset.tokenized_market_cap > 0
                     ? (asset.tokenized_volume_24h / asset.tokenized_market_cap) * 100
                     : 0;
+                const hasValidId = typeof asset.rwa_id === "number" && asset.rwa_id > 0;
                 return (
                   <tr
-                    key={asset.rwa_id}
-                    onClick={() => onInspectRwa(asset.rwa_id)}
-                    className="group cursor-pointer transition-colors hover:bg-[#161e29]"
+                    key={`${asset.rwa_id ?? asset.slug ?? asset.symbol}-${idx}`}
+                    onClick={() => {
+                      if (hasValidId) onInspectRwa(asset.rwa_id);
+                    }}
+                    className={`group transition-colors ${
+                      hasValidId ? "cursor-pointer hover:bg-[#1E2538]" : "opacity-80"
+                    }`}
                   >
-                    <td className="num px-4 py-3 text-slate-500">{asset.rwa_rank}</td>
+                    <td className="num px-4 py-3 text-[#7C849C]">{asset.rwa_rank ?? "—"}</td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2.5">
-                        <span className="num inline-flex h-6 min-w-[46px] items-center justify-center rounded bg-slate-200/[0.06] px-1.5 text-[11px] font-semibold text-slate-100">
-                          {asset.symbol}
-                        </span>
+                        <RwaLogo
+                          symbol={asset.symbol}
+                          name={asset.name}
+                          assetType={asset.asset_type}
+                          size={28}
+                        />
                         <div>
-                          <div className="font-medium text-slate-100 group-hover:text-white">
-                            {asset.name}
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold text-white group-hover:text-[#6188FF]">
+                              {asset.name}
+                            </span>
+                            <span className="num text-[11px] font-medium text-[#8E96AF]">
+                              {asset.symbol}
+                            </span>
                           </div>
-                          <div className="num text-[11px] text-slate-500">
-                            rwa_id:{asset.rwa_id}
+                          <div className="num text-[10px] text-[#646B80]">
+                            {hasValidId ? `rwa_id:${asset.rwa_id}` : "unmapped id"}
                           </div>
                         </div>
                       </div>
                     </td>
                     <td className="px-4 py-3">
-                      <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded bg-slate-200/[0.05] px-2 py-0.5 text-[11px] text-slate-300">
+                      <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-md bg-[#1C2234] px-2 py-0.5 text-[11px] text-[#C8CEE0]">
                         <span
                           className="h-1.5 w-1.5 rounded-full"
                           style={{
@@ -361,33 +375,37 @@ export function ScreenerView({ overview, onInspectRwa }: ScreenerViewProps) {
                         {formatAssetTypeLabel(asset.asset_type)}
                       </span>
                     </td>
-                    <td className="num px-4 py-3 text-right font-medium text-slate-100">
+                    <td className="num px-4 py-3 text-right font-medium text-white">
                       {formatCurrency(asset.average_tokenized_price)}
                     </td>
-                    <td className="num px-4 py-3 text-right text-slate-200">
+                    <td className="num px-4 py-3 text-right text-[#E2E6F3]">
                       {formatCurrency(asset.tokenized_market_cap, true)}
                     </td>
-                    <td className="num px-4 py-3 text-right text-slate-300">
+                    <td className="num px-4 py-3 text-right text-[#B8C0D6]">
                       {formatCurrency(asset.tokenized_volume_24h, true)}
                     </td>
                     <td className="num px-4 py-3 text-right">
                       <span
                         className={
                           turnover >= 20
-                            ? "text-emerald-400"
+                            ? "text-[#16C784]"
                             : turnover >= 5
-                              ? "text-slate-200"
-                              : "text-slate-500"
+                              ? "text-[#E2E6F3]"
+                              : "text-[#7C849C]"
                         }
                       >
                         {formatPercent(turnover)}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <span className="inline-flex items-center gap-1 text-xs font-medium text-[#eab308] opacity-80 transition-opacity group-hover:opacity-100">
-                        Analyze
-                        <ArrowUpRight className="h-3.5 w-3.5" />
-                      </span>
+                      {hasValidId ? (
+                        <span className="inline-flex items-center gap-1 text-xs font-medium text-[#6188FF] transition-colors group-hover:text-white">
+                          Analyze
+                          <ArrowUpRight className="h-3.5 w-3.5" />
+                        </span>
+                      ) : (
+                        <span className="num text-[11px] text-[#646B80]">—</span>
+                      )}
                     </td>
                   </tr>
                 );

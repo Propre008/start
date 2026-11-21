@@ -1,23 +1,27 @@
 @import "tailwindcss";
 
 :root {
-  --bg-canvas: #090c10;
-  --bg-surface: #0f141b;
-  --bg-elevated: #151c25;
-  --bg-hover: #1b2430;
-  --border-subtle: rgba(226, 232, 240, 0.08);
-  --border-strong: rgba(226, 232, 240, 0.16);
-  --text-primary: #f1f5f9;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
-  --accent-gold: #eab308;
-  --accent-gold-soft: rgba(234, 179, 8, 0.14);
-  --accent-emerald: #10b981;
-  --accent-emerald-soft: rgba(16, 185, 129, 0.14);
-  --accent-red: #ef4444;
-  --accent-red-soft: rgba(239, 68, 68, 0.14);
-  --accent-cyan: #38bdf8;
-  --accent-cyan-soft: rgba(56, 189, 248, 0.14);
+  /* CoinMarketCap Native Dark Palette + Institutional Bullion Gold */
+  --bg-canvas: #0d1421;
+  --bg-surface: #171924;
+  --bg-elevated: #222531;
+  --bg-hover: #2b2e3d;
+  --border-subtle: rgba(161, 167, 187, 0.14);
+  --border-strong: rgba(161, 167, 187, 0.26);
+  --text-primary: #ffffff;
+  --text-secondary: #a1a7bb;
+  --text-muted: #646b80;
+  --cmc-blue: #3861fb;
+  --cmc-blue-bright: #6188ff;
+  --cmc-blue-soft: rgba(56, 97, 251, 0.16);
+  --cmc-green: #16c784;
+  --cmc-green-soft: rgba(22, 199, 132, 0.14);
+  --cmc-red: #ea3943;
+  --cmc-red-soft: rgba(234, 57, 67, 0.14);
+  --accent-gold: #f3ba2f;
+  --accent-gold-soft: rgba(243, 186, 47, 0.14);
+  --accent-cyan: #13b2cf;
+  --accent-purple: #8a3ffc;
 }
 
 @theme inline {
@@ -42,15 +46,15 @@ body {
 }
 
 .terminal-panel {
-  background: linear-gradient(180deg, #111720 0%, #0d1218 100%);
+  background: linear-gradient(180deg, #1b2030 0%, #141824 100%);
   border: 1px solid var(--border-subtle);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.035),
-    0 8px 24px -12px rgba(0, 0, 0, 0.55);
+    inset 0 1px 0 rgba(255, 255, 255, 0.045),
+    0 12px 30px -16px rgba(0, 0, 0, 0.65);
 }
 
 .terminal-subpanel {
-  background-color: var(--bg-elevated);
+  background-color: #1f2435;
   border: 1px solid var(--border-subtle);
 }
 
@@ -63,6 +67,92 @@ samp {
   font-variant-numeric: tabular-nums;
 }
 
+.grid-lines {
+  background-image: radial-gradient(rgba(97, 136, 255, 0.09) 1px, transparent 0);
+  background-size: 26px 26px;
+}
+
+.cmc-hero-glow {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 28px 70px -24px rgba(5, 10, 22, 0.88),
+    0 0 42px -12px rgba(56, 97, 251, 0.28);
+}
+
+.pulse-dot {
+  box-shadow: 0 0 10px rgba(22, 199, 132, 0.9);
+}
+
+/* 3D Motion & Ambient Depth Keyframes */
+@keyframes aurora-drift {
+  0% {
+    transform: translate3d(-4%, -2%, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(4%, 3%, 0) scale(1.06);
+  }
+  100% {
+    transform: translate3d(-4%, -2%, 0) scale(1);
+  }
+}
+
+@keyframes float-3d {
+  0%,
+  100% {
+    transform: translate3d(0, 0px, 0);
+  }
+  50% {
+    transform: translate3d(0, -6px, 0);
+  }
+}
+
+@keyframes ring-spin-3d {
+  0% {
+    transform: rotateX(68deg) rotateZ(0deg);
+  }
+  100% {
+    transform: rotateX(68deg) rotateZ(360deg);
+  }
+}
+
+@keyframes marquee-scroll {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  100% {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+.animate-aurora {
+  animation: aurora-drift 16s ease-in-out infinite;
+}
+
+.animate-float-3d {
+  animation: float-3d 5.5s ease-in-out infinite;
+}
+
+.animate-ring-3d {
+  animation: ring-spin-3d 28s linear infinite;
+}
+
+.animate-marquee {
+  animation: marquee-scroll 38s linear infinite;
+}
+
+.animate-marquee:hover {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-aurora,
+  .animate-float-3d,
+  .animate-ring-3d,
+  .animate-marquee {
+    animation: none !important;
+  }
+}
+
 .terminal-scroll::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -73,10 +163,10 @@ samp {
 }
 
 .terminal-scroll::-webkit-scrollbar-thumb {
-  background: rgba(148, 163, 184, 0.2);
+  background: rgba(161, 167, 187, 0.25);
   border-radius: 3px;
 }
 
 .terminal-scroll::-webkit-scrollbar-thumb:hover {
-  background: rgba(148, 163, 184, 0.35);
+  background: rgba(161, 167, 187, 0.42);
 }

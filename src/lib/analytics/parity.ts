@@ -33,7 +33,7 @@ export function computeParityMetrics(quote: RwaQuoteLatestItem): ParityAnalytics
     if (hasLiquidTokens && (t.market_cap || 0) <= 0 && (t.volume_24h || 0) <= 0) {
       return "NO_LIQUIDITY";
     }
-    if (averagePrice > 0 && (t.price < averagePrice * 0.2 || t.price > averagePrice * 5)) {
+    if (averagePrice > 0 && (t.price < averagePrice * 0.5 || t.price > averagePrice * 2)) {
       return "UNIT_MISMATCH";
     }
     return "INCLUDED";

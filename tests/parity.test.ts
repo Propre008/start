@@ -169,3 +169,51 @@ test("computeParityMetrics excludes unit-scaled 1g gold tokens and zero-liquidit
     `Expected realistic 1oz gold spread (~45.8 bps), got ${res.spreadBps}`
   );
 });
+
+test("computeParityMetrics excludes 4x pre-split equity tokens (e.g. SpaceX $532 vs $130) as UNIT_MISMATCH", () => {
+  const quote = makeBaseQuote({
+    rwa_id: 9,
+    name: "SpaceX",
+    symbol: "SPCX",
+    asset_type: "stock",
+    average_tokenized_price: 130.62,
+    tokens: [
+      {
+        symbol: "SPCXB",
+        name: "SpaceX bStocks",
+        price: 130.61,
+        crypto_id: 40217,
+        issuer_id: "bstocks",
+        issuer_name: "bStocks",
+        market_cap: 109_862_024,
+        volume_24h: 15_243_387,
+      },
+      {
+        symbol: "SPCXx",
+        name: "SpaceX Backed",
+        price: 130.66,
+        crypto_id: 40218,
+        issuer_id: "backed",
+        issuer_name: "Backed Assets",
+        market_cap: 74_248_690,
+        volume_24h: 7_879_449,
+      },
+      {
+        symbol: "SPACEX",
+        name: "SpaceX PreStocks (4x pre-split)",
+        price: 532.1,
+        crypto_id: 37656,
+        issuer_id: "prestocks",
+        issuer_name: "PreStocks Assets",
+        market_cap: 3_898_361,
+        volume_24h: 0,
+      },
+    ],
+  });
+
+  const res = computeParityMetrics(quote);
+  assert.equal(res.tokens.find((t) => t.symbol === "SPACEX")?.parityStatus, "UNIT_MISMATCH");
+  assert.equal(res.excludedTokenCount, 1);
+  assert.equal(res.grade, "TIGHT");
+  assert.ok(res.spreadBps < 10, `Expected tight spread after excluding 4x pre-split, got ${res.spreadBps}`);
+});
