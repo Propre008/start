@@ -1,6 +1,6 @@
 "use client";
 
-import { RefreshCw, Terminal } from "lucide-react";
+import { Compass, RefreshCw, Terminal } from "lucide-react";
 import { formatCurrency, formatPercent } from "@/lib/analytics/parity";
 import type { DataSourceMode, OverviewResponse } from "@/lib/cmc/types";
 
@@ -15,6 +15,8 @@ interface TerminalHeaderProps {
   onOpenInspector: () => void;
   traceCount: number;
   hasCustomKey: boolean;
+  introHidden?: boolean;
+  onShowIntro?: () => void;
 }
 
 const TABS: Array<{ id: ActiveTab; label: string; shortLabel: string }> = [
@@ -55,6 +57,8 @@ export function TerminalHeader({
   onOpenInspector,
   traceCount,
   hasCustomKey,
+  introHidden = false,
+  onShowIntro,
 }: TerminalHeaderProps) {
   const btc = overview?.cryptoBenchmarks.find((c) => c.symbol === "BTC");
   const eth = overview?.cryptoBenchmarks.find((c) => c.symbol === "ETH");
@@ -179,6 +183,18 @@ export function TerminalHeader({
         </div>
 
         <div className="flex items-center gap-2">
+          {introHidden && onShowIntro && (
+            <button
+              id="btn-show-intro"
+              type="button"
+              onClick={onShowIntro}
+              className="inline-flex items-center gap-1.5 rounded-md border border-slate-200/[0.08] bg-[#121821] px-2.5 py-1.5 text-xs font-medium text-slate-400 transition-colors hover:border-[#eab308]/40 hover:text-slate-100"
+              title="Restore Quick Judge Tour strip"
+            >
+              <Compass className="h-3.5 w-3.5 text-[#eab308]" />
+              <span className="hidden md:inline">Tour</span>
+            </button>
+          )}
           <button
             id="btn-refresh-data"
             type="button"

@@ -1,21 +1,509 @@
 {
   "project": "ParityLens",
-  "capturedAt": "2026-11-21T17:14:21.579Z",
-  "mode": "live_keyless",
-  "passedCount": 3,
-  "totalTested": 3,
+  "capturedAt": "2026-11-21T18:29:53.179Z",
+  "mode": "live_pro",
+  "passedCount": 10,
+  "totalTested": 11,
   "results": [
     {
-      "name": "Crypto Quotes Latest v3",
-      "endpoint": "/public-api/v3/cryptocurrency/quotes/latest?id=1,1027,5426,825&convert=USD",
-      "mode": "live_keyless",
+      "name": "RWA ID Map",
+      "endpoint": "/v5/real-world-assets/map?sort=rwa_rank&limit=10",
+      "mode": "live_pro",
       "httpStatus": 200,
       "ok": true,
-      "elapsedMs": 6,
+      "elapsedMs": 42,
+      "creditCount": 0,
+      "errorCode": "0",
+      "errorMessage": "",
+      "timestamp": "2026-11-21T18:29:41.090Z",
+      "responseSample": {
+        "data": {
+          "rwa_assets": [
+            {
+              "name": "Gold",
+              "symbol": "GOLD",
+              "slug": "gold",
+              "rwa_id": 1,
+              "asset_type": "commodity",
+              "rwa_rank": 1,
+              "has_tokens": true,
+              "first_historical_data": "2009-09-27T00:00:00.000Z",
+              "last_historical_data": "2026-11-20T21:00:00.000Z"
+            },
+            {
+              "name": "Apple Inc.",
+              "symbol": "AAPL",
+              "slug": "apple",
+              "rwa_id": 3,
+              "asset_type": "stock",
+              "rwa_rank": 2,
+              "has_tokens": true,
+              "first_historical_data": "2003-09-07T04:00:00.000Z",
+              "last_historical_data": "2026-11-21T00:59:00.000Z"
+            },
+            {
+              "name": "Microsoft Corp",
+              "symbol": "MSFT",
+              "slug": "microsoft",
+              "rwa_id": 7,
+              "asset_type": "stock",
+              "rwa_rank": 3,
+              "has_tokens": true,
+              "first_historical_data": "2003-09-07T04:00:00.000Z",
+              "last_historical_data": "2026-11-21T00:59:00.000Z"
+            }
+          ],
+          "total_size": 7811,
+          "has_more": true,
+          "_rwa_assets_truncated_from": 10
+        },
+        "status": {
+          "timestamp": "2026-11-21T18:29:41.090Z",
+          "error_code": "0",
+          "error_message": "",
+          "elapsed": 42,
+          "credit_count": 0
+        }
+      }
+    },
+    {
+      "name": "RWA Assets List",
+      "endpoint": "/v5/real-world-assets/assets/list?sort=tokenized_market_cap&sort_dir=desc&limit=10&convert=USD",
+      "mode": "live_pro",
+      "httpStatus": 200,
+      "ok": true,
+      "elapsedMs": 14,
       "creditCount": 1,
       "errorCode": "0",
       "errorMessage": "",
-      "timestamp": "2026-11-21T17:14:21.454Z",
+      "timestamp": "2026-11-21T18:29:42.113Z",
+      "responseSample": {
+        "data": {
+          "total_size": 7942,
+          "has_more": true,
+          "rwa_assets": [
+            {
+              "name": "Gold",
+              "symbol": "GOLD",
+              "slug": "gold",
+              "quotes": [
+                {
+                  "symbol": "USD",
+                  "crypto_id": 2781,
+                  "average_tokenized_price": 3545.1795606092437,
+                  "tokenized_market_cap": 4340207451.856252,
+                  "tokenized_volume_24h": 396341248.82938665,
+                  "last_updated": "2026-11-21T18:28:02.000Z"
+                }
+              ],
+              "rwa_id": 1,
+              "asset_type": "commodity",
+              "rwa_rank": 1,
+              "has_tokens": true,
+              "average_tokenized_price": 3545.1795606092437,
+              "tokenized_market_cap": 4340207451.856252,
+              "tokenized_volume_24h": 396341248.82938665,
+              "last_updated": "2026-11-21T18:29:12.000Z"
+            },
+            {
+              "name": "Nvidia Corp",
+              "symbol": "NVDA",
+              "slug": "nvidia",
+              "quotes": [
+                {
+                  "symbol": "USD",
+                  "crypto_id": 2781,
+                  "average_tokenized_price": 130.510741559384,
+                  "tokenized_market_cap": 370487720.6410132,
+                  "tokenized_volume_24h": 289046952.0449465,
+                  "last_updated": "2026-11-21T18:28:02.000Z"
+                }
+              ],
+              "rwa_id": 2,
+              "asset_type": "stock",
+              "rwa_rank": 5,
+              "has_tokens": true,
+              "average_tokenized_price": 130.510741559384,
+              "tokenized_market_cap": 370487720.6410132,
+              "tokenized_volume_24h": 289046952.0449465,
+              "last_updated": "2026-11-21T18:29:12.000Z"
+            },
+            {
+              "name": "SpaceX",
+              "symbol": "SPCX",
+              "slug": "spacex",
+              "quotes": [
+                {
+                  "symbol": "USD",
+                  "crypto_id": 2781,
+                  "average_tokenized_price": 129.7150604087762,
+                  "tokenized_market_cap": 299849652.7044478,
+                  "tokenized_volume_24h": 67155918.95109314,
+                  "last_updated": "2026-11-21T18:28:02.000Z"
+                }
+              ],
+              "rwa_id": 9,
+              "asset_type": "stock",
+              "rwa_rank": 8,
+              "has_tokens": true,
+              "average_tokenized_price": 129.7150604087762,
+              "tokenized_market_cap": 299849652.7044478,
+              "tokenized_volume_24h": 67155918.95109314,
+              "last_updated": "2026-11-21T18:29:12.000Z"
+            }
+          ],
+          "_rwa_assets_truncated_from": 10
+        },
+        "status": {
+          "timestamp": "2026-11-21T18:29:42.113Z",
+          "error_code": "0",
+          "error_message": "",
+          "elapsed": 14,
+          "credit_count": 1
+        }
+      }
+    },
+    {
+      "name": "RWA Quotes Latest",
+      "endpoint": "/v5/real-world-assets/quotes/latest?rwa_id=1&convert=USD",
+      "mode": "live_pro",
+      "httpStatus": 200,
+      "ok": true,
+      "elapsedMs": 7,
+      "creditCount": 1,
+      "errorCode": "0",
+      "errorMessage": "",
+      "timestamp": "2026-11-21T18:29:43.639Z",
+      "responseSample": {
+        "data": {
+          "rwa_assets": [
+            {
+              "name": "Gold",
+              "symbol": "GOLD",
+              "slug": "gold",
+              "quotes": [
+                {
+                  "symbol": "USD",
+                  "crypto_id": 2781,
+                  "average_tokenized_price": 3545.1795606092437,
+                  "tokenized_market_cap": 4340207451.856252,
+                  "tokenized_volume_24h": 396341248.82938665,
+                  "last_updated": "2026-11-21T18:28:02.000Z"
+                }
+              ],
+              "rwa_id": 1,
+              "asset_type": "commodity",
+              "rwa_rank": 1,
+              "has_tokens": true,
+              "average_tokenized_price": 3545.1795606092437,
+              "tokenized_market_cap": 4340207451.856252,
+              "tokenized_volume_24h": 396341248.82938665,
+              "last_updated": "2026-11-21T18:29:12.093Z",
+              "tokens": [
+                {
+                  "symbol": "PAXG",
+                  "name": "PAX Gold",
+                  "price": 3547.8321138236606,
+                  "crypto_id": 4705,
+                  "issuer_id": "68904c24abae9b5b9fb35815",
+                  "issuer_name": "Paxos",
+                  "market_cap": 1587086278.282263,
+                  "volume_24h": 139174520.30456004
+                },
+                {
+                  "symbol": "XAUt",
+                  "name": "Tether Gold",
+                  "price": 3544.7981575229646,
+                  "crypto_id": 5176,
+                  "issuer_id": "68904e9cabae9b5b9fb358ac",
+                  "issuer_name": "Tether Holdings",
+                  "market_cap": 2656555270.757326,
+                  "volume_24h": 255197678.3772734
+                },
+                {
+                  "symbol": "XAUM",
+                  "name": "Matrixdock Gold",
+                  "price": 3534.1585820119944,
+                  "crypto_id": 34212,
+                  "issuer_id": "68905a7babae9b5b9fb35a8d",
+                  "issuer_name": "Matrixdock",
+                  "market_cap": 61352687.5890308,
+                  "volume_24h": 587921.1376641063
+                },
+                {
+                  "symbol": "CGO",
+                  "name": "Comtech Gold",
+                  "price": 112.48716244076982,
+                  "crypto_id": 20245,
+                  "issuer_id": "68904cceabae9b5b9fb35839",
+                  "issuer_name": "Comtech Gold",
+                  "market_cap": 15860689.904148545,
+                  "volume_24h": 740963.1558824704
+                },
+                {
+                  "symbol": "VNXAU",
+                  "name": "VNX Gold",
+                  "price": 115.71497404034574,
+                  "crypto_id": 22492,
+                  "issuer_id": "68905b43abae9b5b9fb35a95",
+                  "issuer_name": "VNX",
+                  "market_cap": 4871600.407098556,
+                  "volume_24h": 6215.665211232898
+                },
+                {
+                  "symbol": "XAUT0",
+                  "name": "Tether Gold Tokens",
+                  "price": 3550.388511764994,
+                  "crypto_id": 37082,
+                  "issuer_id": "68904e9cabae9b5b9fb358ac",
+                  "issuer_name": "Tether Holdings",
+                  "market_cap": 14489196.182001442,
+                  "volume_24h": 497904.4942422048
+                },
+                {
+                  "symbol": "XAU",
+                  "name": "Gold (Derivatives)",
+                  "price": 3557.7339228174183,
+                  "crypto_id": 39344,
+                  "issuer_id": "695e11f774b54210f3b95dc3",
+                  "issuer_name": "NA (Derivatives)",
+                  "market_cap": 0,
+                  "volume_24h": 0
+                }
+              ],
+              "tradfi_markets": []
+            }
+          ]
+        },
+        "status": {
+          "timestamp": "2026-11-21T18:29:43.639Z",
+          "error_code": "0",
+          "error_message": "",
+          "elapsed": 7,
+          "credit_count": 1
+        }
+      }
+    },
+    {
+      "name": "RWA Metadata Info",
+      "endpoint": "/v5/real-world-assets/info?rwa_id=1",
+      "mode": "live_pro",
+      "httpStatus": 200,
+      "ok": true,
+      "elapsedMs": 3,
+      "creditCount": 1,
+      "errorCode": "0",
+      "errorMessage": "",
+      "timestamp": "2026-11-21T18:29:45.956Z",
+      "responseSample": {
+        "data": {
+          "rwa_assets": [
+            {
+              "name": "Gold",
+              "symbol": "GOLD",
+              "slug": "gold",
+              "website": null,
+              "employees": null,
+              "founded": null,
+              "industry": null,
+              "cik": null,
+              "about": {
+                "description": "### What is gold, and why is it considered a safe-haven asset?\n\nWhen markets turn volatile, many investors shift to assets they perceive as stable. Gold tops that list.\n\nGold is a physical commodity and monetary metal that has served as a store of value for thousands of years. It’s considered a “safe haven” because it historically retains purchasing power during inflation, political instability, or financial crises. Unlike fiat currencies, gold cannot be printed or debased by central banks. It doesn’t default, it doesn’t rely on a counterparty, and it tends to perform well when trust in the financial system erodes.\n\n\n### Who controls gold production globally?\n\nNo single entity owns the gold market - but production is concentrated.\n\nGold is mined across the globe, with major producers including China, Russia, Australia, the U.S., and Canada. While governments regulate extraction, most gold mining is conducted by private or public companies like Newmont Corporation, Barrick Gold, and AngloGold Ashanti. Central banks influence reserves and price direction through monetary policy and holdings, but no institution fully controls supply. Production levels depend on geology, mining costs, and geopolitical stability.\n\n\n### How has gold been used historically as money and a store of value?\n\nFiat currencies fade. Empires fall. Gold endures.\n\nFor over 5,000 years, gold has been used as currency, collateral, and a benchmark for monetary systems. It backed national currencies under the gold standard until the 20th century. Even after being replaced by fiat, gold remained a global store of value. In many cultures, gold jewelry also functions as a form of liquid wealth. Its scarcity, durability, and universality have made it a cross-border monetary reserve throughout history.\n\n\n### What factors influence the price of gold (inflation, interest rates, demand)?\n\nGold isn’t just shiny metal - it reacts to macro forces in real time.\n\nKey drivers include inflation expectations, real interest rates, U.S. dollar strength, central bank demand, and geopolitical risk. When inflation rises or interest rates fall, gold tends to strengthen. It also benefits from dollar weakness and flight-to-safety behavior during war or recession. Jewelry demand in countries like India and China, along with ETF inflows and mining supply, adds further short- and long-term price pressure.\n\n\n### Why do investors buy gold in 2025?\n\nIn a world of AI hype, unstable geopolitics, and inflation uncertainty - gold feels familiar.\n\nInvestors in 2025 are allocating to gold as a portfolio hedge against rate cuts, debt monetization, and U.S. dollar depreciation. \n\nPersistent inflation and concerns about financial system fragility have renewed interest in hard assets. Unlike many digital assets, gold has low counterparty risk and high liquidity, especially during global drawdowns. Institutional portfolios often use it to reduce overall volatility.\n\n### How does gold compare to stocks, bonds, and Bitcoin as a hedge?\n\nNot all hedges behave the same - and gold’s track record is longer.\n\nGold typically holds or gains value when stocks fall, making it a defensive asset. It’s uncorrelated with bonds and often outperforms them during inflationary periods. Compared to Bitcoin, gold is less volatile, more regulated, and historically more trusted by institutions. \n\nBitcoin has shown hedge-like qualities during monetary debasement but still trades more like a tech stock. Gold remains the benchmark for traditional risk-off hedging.\n\n\n### What is tokenized gold, and how does it work?\n\nPhysical gold is hard to move - tokenized gold solves that.\n\nTokenized gold represents digital tokens backed 1:1 by physical gold held in vaults. Projects like PAX Gold (PAXG), Tether Gold (XAUT), and Matrixdock tokenize real gold bars stored in secure custodial facilities. Each token reflects the real-time price of gold and can be traded on blockchains like Ethereum or Tron. These assets bring gold into the crypto ecosystem with easier transferability and lower custody friction.\n\n\n### Where can I buy tokenized gold (PAXG, Tether Gold, Matrixdock Gold)?\n\nTokenized gold is available across major crypto platforms.\n\nYou can buy PAXG, XAUT, and other tokenized gold assets on centralized exchanges like Binance, Kraken, or Bitfinex. Some DeFi protocols and DEXs on Ethereum, Arbitrum, and other chains also support them via stablecoin pairs. Availability depends on your location and the exchange’s listing policies. These tokens can be stored in self-custody wallets like MetaMask, making gold accessible to crypto-native users.\n\n\n### Is tokenized gold fully backed by physical gold reserves?\n\nBacking matters - especially when trust is the selling point.\n\nYes, most reputable tokenized gold assets like PAXG and Tether Gold claim to be fully backed by physical gold bars stored in regulated vaults. Issuers publish audit reports and allow token holders to redeem for actual metal under specific conditions. \n\nHowever, redemption policies, jurisdictions, and fees vary. Always verify the custodian details and audit transparency before treating the tokens as equivalent to vault-stored gold.\n\n\n### How is gold being integrated into DeFi and blockchain ecosystems?\n\nDeFi users want low-volatility collateral - and gold fits.\n\nTokenized gold is increasingly used in lending, staking, and synthetic asset protocols. Platforms like [Aave] (https://coinmarketcap.com/currencies/aave/) and DeFiChain allow users to borrow against gold tokens or earn yield through liquidity pools. Unlike stablecoins, gold-backed tokens can preserve purchasing power without relying on fiat pegs. Gold also serves as a collateral layer in emerging real-world asset [(RWA)] (https://coinmarketcap.com/real-world-assets/) protocols that aim to tokenize traditional assets in a permissionless way.\n\n\n### Which blockchains support tokenized gold?\n\nTokenized gold needs scale and security - and blockchains like Ethereum deliver both.\n\nEthereum is the most widely used chain for tokenized gold, with projects like [PAXG] (https://coinmarketcap.com/currencies/pax-gold/) and [XAUT] (https://coinmarketcap.com/currencies/tether-gold/) operating as ERC-20 tokens. Tron offers lower fees and supports alternatives like Tether Gold. Other chains such as [BNB Chain] (https://coinmarketcap.com/currencies/bnb/), Polygon, and Avalanche may also list bridged versions of gold tokens. Interoperability protocols and multichain wallets now make it easy to transfer tokenized gold across ecosystems.\n\n\n### How does tokenized gold compare to [Bitcoin] (https://coinmarketcap.com/currencies/bitcoin/) as “digital gold”?\n\nBitcoin is called digital gold - but tokenized gold is literally that.\n\nTokenized gold tracks the physical commodity directly, backed by vault-stored assets. Bitcoin is a decentralized, fixed-supply digital currency often positioned as a long-term inflation hedge. \n\nWhile Bitcoin has outperformed gold in recent bull markets, it remains more volatile and unbacked. Tokenized gold offers stability and is easier for traditional institutions to integrate into portfolios. The two assets serve different risk profiles and roles within crypto.\n\n\n### Why is the price of gold rising (or falling) today?\n\nGold doesn’t trade on hype - it trades on macro signals.\n\nThe price of gold often rises due to falling real interest rates, central bank accumulation, or geopolitical tensions. It may fall when bond yields rise or the U.S. dollar strengthens. Short-term moves can also result from ETF flows or profit-taking after sharp rallies. In recent years, price shifts have increasingly reflected investor views on monetary policy, inflation expectations, and global de-dollarization trends.\n\n\n### How does gold perform during recessions or stock market crashes?\n\nGold tends to rise when everything else is falling.\n\nDuring recessions or market crashes, gold often outperforms both stocks and risk assets. It held value during the 2008 financial crisis, and in early COVID-19 panic, gold recovered faster than equities. It doesn’t pay dividends, but its role as a hedge and store of value typically attracts capital in risk-off cycles. While not immune to drawdowns, gold usually provides relative stability during systemic stress.",
+                "logo": null,
+                "website": null,
+                "date_added": "2025-07-17T06:57:15.000Z"
+              },
+              "rwa_id": 1,
+              "asset_type": "commodity",
+              "rwa_rank": 1,
+              "has_tokens": true,
+              "primary_exchange": null
+            }
+          ]
+        },
+        "status": {
+          "timestamp": "2026-11-21T18:29:45.956Z",
+          "error_code": "0",
+          "error_message": "",
+          "elapsed": 3,
+          "credit_count": 1
+        }
+      }
+    },
+    {
+      "name": "RWA Market Pairs",
+      "endpoint": "/v5/real-world-assets/market-pairs/list?rwa_id=1&limit=10&convert=USD",
+      "mode": "live_pro",
+      "httpStatus": 403,
+      "ok": false,
+      "elapsedMs": 0,
+      "creditCount": 0,
+      "errorCode": "1006",
+      "errorMessage": "Your API Key subscription plan doesn't support this endpoint.",
+      "timestamp": "2026-11-21T18:29:49.801Z",
+      "responseSample": {
+        "status": {
+          "timestamp": "2026-11-21T18:29:49.801Z",
+          "error_code": "1006",
+          "error_message": "Your API Key subscription plan doesn't support this endpoint.",
+          "elapsed": 0,
+          "credit_count": 0
+        }
+      }
+    },
+    {
+      "name": "RWA Issuers List",
+      "endpoint": "/v5/real-world-assets/issuers/list?active=true&limit=10",
+      "mode": "live_pro",
+      "httpStatus": 200,
+      "ok": true,
+      "elapsedMs": 4,
+      "creditCount": 1,
+      "errorCode": "0",
+      "errorMessage": "",
+      "timestamp": "2026-11-21T18:29:50.879Z",
+      "responseSample": {
+        "data": {
+          "issuers": [
+            {
+              "name": "Backed Assets",
+              "website": "https://assets.backed.fi/",
+              "logo": null,
+              "issuer_id": "6878977dcbbf471de3366e85",
+              "num_tokens": 1218
+            },
+            {
+              "name": "Backpack",
+              "website": "https://backpack.exchange",
+              "logo": "https://s2.coinmarketcap.com/static/img/issuer/M7sS2GzR_400x400.png",
+              "issuer_id": "6a2d54b697c45356b1a634f4",
+              "num_tokens": 16
+            },
+            {
+              "name": "bStocks",
+              "website": null,
+              "logo": "https://s2.coinmarketcap.com/static/img/issuer/Untitled_design__2_.png",
+              "issuer_id": "6a2aed5097c45356b1a5f710",
+              "num_tokens": 114
+            }
+          ],
+          "total_size": 24,
+          "has_more": true,
+          "_issuers_truncated_from": 10
+        },
+        "status": {
+          "timestamp": "2026-11-21T18:29:50.879Z",
+          "error_code": "0",
+          "error_message": "",
+          "elapsed": 4,
+          "credit_count": 1
+        }
+      }
+    },
+    {
+      "name": "RWA Single Issuer",
+      "endpoint": "/v5/real-world-assets/issuers?issuer_id=6878977dcbbf471de3366e85&limit=10",
+      "mode": "live_pro",
+      "httpStatus": 200,
+      "ok": true,
+      "elapsedMs": 4,
+      "creditCount": 1,
+      "errorCode": "0",
+      "errorMessage": "",
+      "timestamp": "2026-11-21T18:29:51.992Z",
+      "responseSample": {
+        "data": {
+          "name": "Backed Assets",
+          "website": "https://assets.backed.fi/",
+          "tokens": [
+            {
+              "name": "Coinbase tokenized stock (xStock)",
+              "symbol": "COINX",
+              "crypto_id": 36989,
+              "rwa_id": 82
+            },
+            {
+              "name": "NVIDIA tokenized stock (xStock)",
+              "symbol": "NVDAX",
+              "crypto_id": 36992,
+              "rwa_id": 2
+            },
+            {
+              "name": "Apple tokenized stock (xStock)",
+              "symbol": "AAPLX",
+              "crypto_id": 36994,
+              "rwa_id": 3
+            }
+          ],
+          "issuer_id": "6878977dcbbf471de3366e85",
+          "num_tokens": 1218,
+          "total_size": 1218,
+          "has_more": true,
+          "_tokens_truncated_from": 10
+        },
+        "status": {
+          "timestamp": "2026-11-21T18:29:51.992Z",
+          "error_code": "0",
+          "error_message": "",
+          "elapsed": 4,
+          "credit_count": 1
+        }
+      }
+    },
+    {
+      "name": "Key Info",
+      "endpoint": "/v1/key/info",
+      "mode": "live_pro",
+      "httpStatus": 200,
+      "ok": true,
+      "elapsedMs": 32,
+      "creditCount": 0,
+      "errorCode": 0,
+      "errorMessage": null,
+      "timestamp": "2026-11-21T18:29:53.081Z",
+      "responseSample": {
+        "data": {
+          "plan": {
+            "credit_limit_monthly": 15000,
+            "credit_limit_monthly_reset": "In 9 days, 5 hours, 30 minutes",
+            "credit_limit_monthly_reset_timestamp": "2026-12-01T00:00:00.000Z",
+            "rate_limit_minute": 50
+          },
+          "usage": {
+            "current_minute": {
+              "requests_made": 8,
+              "requests_left": 42
+            },
+            "current_day": {
+              "credits_used": 5
+            },
+            "current_month": {
+              "credits_used": 5,
+              "credits_left": 14995
+            }
+          }
+        },
+        "status": {
+          "timestamp": "2026-11-21T18:29:53.081Z",
+          "error_code": 0,
+          "error_message": null,
+          "elapsed": 32,
+          "credit_count": 0,
+          "notice": null
+        }
+      }
+    },
+    {
+      "name": "Crypto Quotes Latest v3",
+      "endpoint": "/v3/cryptocurrency/quotes/latest?id=1,1027,5426,825&convert=USD",
+      "mode": "live_pro",
+      "httpStatus": 200,
+      "ok": true,
+      "elapsedMs": 5,
+      "creditCount": 1,
+      "errorCode": "0",
+      "errorMessage": "",
+      "timestamp": "2026-11-21T18:29:54.093Z",
       "responseSample": {
         "data": [
           {
@@ -213,39 +701,39 @@
             "is_active": 1,
             "infinite_supply": false,
             "is_fiat": 0,
-            "circulating_supply": 20115362,
-            "total_supply": 20115362,
+            "circulating_supply": 20115409,
+            "total_supply": 20115409,
             "max_supply": 21000000,
             "date_added": "2010-07-13T00:00:00.000Z",
             "num_market_pairs": 12787,
             "cmc_rank": 1,
-            "last_updated": "2026-11-21T17:14:18.013Z",
+            "last_updated": "2026-11-21T18:29:33.027Z",
             "tvl_ratio": null,
             "platform": null,
             "self_reported_circulating_supply": null,
             "self_reported_market_cap": null,
-            "minted_market_cap": 1210597155560.73,
+            "minted_market_cap": 1208908214240.81,
             "quote": [
               {
                 "id": 2781,
                 "symbol": "USD",
-                "price": 60182.7178432449,
-                "volume_24h": 68896699036.59198,
-                "volume_change_24h": 29.606338187003,
-                "cex_volume_24h": 68614914703.16244,
-                "dex_volume_24h": 281784333.42956656,
-                "percent_change_1h": 0.792120041523,
-                "percent_change_24h": 1.731567397656,
-                "percent_change_7d": -7.619384795188,
-                "percent_change_30d": -25.757005525574,
-                "percent_change_60d": -30.370572004998,
-                "percent_change_90d": -22.157743007634,
-                "market_cap": 1210597155560.7305,
-                "market_cap_dominance": 58.8124,
-                "fully_diluted_market_cap": 1263837074708.14,
-                "minted_market_cap": 1210597155560.73,
+                "price": 60098.61466106949,
+                "volume_24h": 66942506352.338776,
+                "volume_change_24h": 24.38874982732,
+                "cex_volume_24h": 66665370041.54765,
+                "dex_volume_24h": 277136310.79112667,
+                "percent_change_1h": -0.11750916002,
+                "percent_change_24h": 1.887108208621,
+                "percent_change_7d": -8.719597829594,
+                "percent_change_30d": -25.852370844887,
+                "percent_change_60d": -30.386486139486,
+                "percent_change_90d": -22.324635206865,
+                "market_cap": 1208908214240.809,
+                "market_cap_dominance": 58.7131,
+                "fully_diluted_market_cap": 1262070907882.46,
+                "minted_market_cap": 1208908214240.81,
                 "tvl": null,
-                "last_updated": "2026-11-21T17:13:02.000Z"
+                "last_updated": "2026-11-21T18:29:02.000Z"
               }
             ]
           },
@@ -348,9 +836,9 @@
             "total_supply": 180269017045.3633,
             "max_supply": null,
             "date_added": "2015-02-25T00:00:00.000Z",
-            "num_market_pairs": 207965,
+            "num_market_pairs": 207975,
             "cmc_rank": 3,
-            "last_updated": "2026-11-21T17:14:03.104Z",
+            "last_updated": "2026-11-21T18:29:33.114Z",
             "tvl_ratio": null,
             "platform": {
               "id": 1027,
@@ -361,28 +849,28 @@
             },
             "self_reported_circulating_supply": null,
             "self_reported_market_cap": null,
-            "minted_market_cap": 179956911237.35,
+            "minted_market_cap": 179954654905.57,
             "quote": [
               {
                 "id": 2781,
                 "symbol": "USD",
-                "price": 0.9982686663902093,
-                "volume_24h": 108915119786.31795,
-                "volume_change_24h": 32.979983256689,
-                "cex_volume_24h": 107414967393.45511,
-                "dex_volume_24h": 1500152392.8627436,
-                "percent_change_1h": 0.0361005142,
-                "percent_change_24h": -0.043461381092,
-                "percent_change_7d": -0.10100919649,
-                "percent_change_30d": -0.041422513988,
-                "percent_change_60d": -0.176592564952,
-                "percent_change_90d": -0.168565769641,
-                "market_cap": 174501207081.29364,
-                "market_cap_dominance": 8.4806,
-                "fully_diluted_market_cap": 179956911237.35,
-                "minted_market_cap": 179956911237.35,
+                "price": 0.9982561499200003,
+                "volume_24h": 105264823154.25769,
+                "volume_change_24h": 26.153314730334,
+                "cex_volume_24h": 103827144949.07462,
+                "dex_volume_24h": 1437678205.1828756,
+                "percent_change_1h": 0.018302830611,
+                "percent_change_24h": -0.02690180806,
+                "percent_change_7d": -0.112469255017,
+                "percent_change_30d": -0.0412789117,
+                "percent_change_60d": -0.175485124159,
+                "percent_change_90d": -0.171075869638,
+                "market_cap": 174499019154.1019,
+                "market_cap_dominance": 8.4757,
+                "fully_diluted_market_cap": 179954654905.57,
+                "minted_market_cap": 179954654905.57,
                 "tvl": null,
-                "last_updated": "2026-11-21T17:13:02.000Z"
+                "last_updated": "2026-11-21T18:29:02.000Z"
               }
             ]
           },
@@ -622,108 +1110,249 @@
             "date_added": "2015-08-07T00:00:00.000Z",
             "num_market_pairs": 14432,
             "cmc_rank": 2,
-            "last_updated": "2026-11-21T17:14:18.187Z",
+            "last_updated": "2026-11-21T18:29:33.185Z",
             "tvl_ratio": null,
             "platform": null,
             "self_reported_circulating_supply": null,
             "self_reported_market_cap": null,
-            "minted_market_cap": 205944364333.48,
+            "minted_market_cap": 205576680974.09,
             "quote": [
               {
                 "id": 2781,
                 "symbol": "USD",
-                "price": 1684.7681820395771,
-                "volume_24h": 24974726253.072495,
-                "volume_change_24h": 49.282166423833,
-                "cex_volume_24h": 24392538090.775063,
-                "dex_volume_24h": 582188162.297416,
-                "percent_change_1h": 0.51222774903,
-                "percent_change_24h": 3.612953544429,
-                "percent_change_7d": -7.256260013702,
-                "percent_change_30d": -29.00378672024,
-                "percent_change_60d": -38.674007435025,
-                "percent_change_90d": -31.208117089685,
-                "market_cap": 205944364333.48376,
-                "market_cap_dominance": 10.0051,
-                "fully_diluted_market_cap": 205944364333.48,
-                "minted_market_cap": 205944364333.48,
+                "price": 1681.7602763511868,
+                "volume_24h": 24055464143.311386,
+                "volume_change_24h": 35.748234182525,
+                "cex_volume_24h": 23509611847.695694,
+                "dex_volume_24h": 545852295.6156677,
+                "percent_change_1h": -0.114814043256,
+                "percent_change_24h": 3.004395249572,
+                "percent_change_7d": -8.587789737084,
+                "percent_change_30d": -29.199713922232,
+                "percent_change_60d": -38.746462865517,
+                "percent_change_90d": -31.287113965839,
+                "market_cap": 205576680974.09085,
+                "market_cap_dominance": 9.9842,
+                "fully_diluted_market_cap": 205576680974.09,
+                "minted_market_cap": 205576680974.09,
                 "tvl": null,
-                "last_updated": "2026-11-21T17:13:02.000Z"
+                "last_updated": "2026-11-21T18:29:02.000Z"
+              }
+            ]
+          },
+          {
+            "tags": [
+              {
+                "slug": "pos",
+                "name": "PoS",
+                "category": "ALGORITHM"
+              },
+              {
+                "slug": "platform",
+                "name": "Platform",
+                "category": "CATEGORY"
+              },
+              {
+                "slug": "solana-ecosystem",
+                "name": "Solana Ecosystem",
+                "category": "PLATFORM"
+              },
+              {
+                "slug": "cms-holdings-portfolio",
+                "name": "CMS Holdings Portfolio",
+                "category": "CATEGORY"
+              },
+              {
+                "slug": "kenetic-capital-portfolio",
+                "name": "Kenetic Capital Portfolio",
+                "category": "CATEGORY"
+              },
+              {
+                "slug": "alameda-research-portfolio",
+                "name": "Alameda Research Portfolio",
+                "category": "CATEGORY"
+              },
+              {
+                "slug": "multicoin-capital-portfolio",
+                "name": "Multicoin Capital Portfolio",
+                "category": "CATEGORY"
+              },
+              {
+                "slug": "okx-ventures-portfolio",
+                "name": "OKX Ventures Portfolio",
+                "category": "CATEGORY"
+              },
+              {
+                "slug": "layer-1",
+                "name": "Layer 1",
+                "category": "CATEGORY"
+              },
+              {
+                "slug": "ftx-bankruptcy-estate",
+                "name": "FTX Bankruptcy Estate ",
+                "category": "CATEGORY"
+              },
+              {
+                "slug": "alleged-sec-securities",
+                "name": "Alleged SEC Securities",
+                "category": "CATEGORY"
+              },
+              {
+                "slug": "cmc-crypto-awards-2024",
+                "name": "CMC Crypto Awards 2024",
+                "category": "CATEGORY"
+              },
+              {
+                "slug": "made-in-america",
+                "name": "Made in America",
+                "category": "CATEGORY"
+              },
+              {
+                "slug": "us-strategic-crypto-reserve",
+                "name": "US Strategic Crypto Reserve",
+                "category": "CATEGORY"
+              },
+              {
+                "slug": "binance-ecosystem",
+                "name": "Binance Ecosystem",
+                "category": "CATEGORY"
+              },
+              {
+                "slug": "binance-listing",
+                "name": "Binance Listing",
+                "category": "CATEGORY"
+              },
+              {
+                "slug": "sec-cftc-token-taxonomy",
+                "name": "SEC/CFTC Token Taxonomy",
+                "category": "CATEGORY"
+              },
+              {
+                "slug": "sec-cftc-digital-commodities",
+                "name": "SEC/CFTC Digital Commodities",
+                "category": "CATEGORY"
+              },
+              {
+                "slug": "coinlist-launchpad",
+                "name": "Coinlist Launchpad",
+                "category": "CATEGORY"
+              }
+            ],
+            "id": 5426,
+            "name": "Solana",
+            "symbol": "SOL",
+            "slug": "solana",
+            "is_active": 1,
+            "infinite_supply": true,
+            "is_fiat": 0,
+            "circulating_supply": 591961724.3242247,
+            "total_supply": 637981556.1194493,
+            "max_supply": null,
+            "date_added": "2020-04-10T00:00:00.000Z",
+            "num_market_pairs": 1192,
+            "cmc_rank": 7,
+            "last_updated": "2026-11-21T18:29:33.060Z",
+            "tvl_ratio": null,
+            "platform": null,
+            "self_reported_circulating_supply": 525236893.3,
+            "self_reported_market_cap": 37112553344.76741,
+            "minted_market_cap": 45078944065.98,
+            "quote": [
+              {
+                "id": 2781,
+                "symbol": "USD",
+                "price": 70.65869480644004,
+                "volume_24h": 4504093029.074392,
+                "volume_change_24h": 34.594374095829,
+                "cex_volume_24h": 4495469938.273982,
+                "dex_volume_24h": 8623090.800410055,
+                "percent_change_1h": -0.038640170617,
+                "percent_change_24h": 1.786678999241,
+                "percent_change_7d": -2.531353807047,
+                "percent_change_30d": -31.579795288289,
+                "percent_change_60d": -40.094463589363,
+                "percent_change_90d": -25.878950246073,
+                "market_cap": 41827242816.119385,
+                "market_cap_dominance": 2.0316,
+                "fully_diluted_market_cap": 45078944065.98,
+                "minted_market_cap": 45078944065.98,
+                "tvl": null,
+                "last_updated": "2026-11-21T18:29:02.000Z"
               }
             ]
           }
         ],
         "status": {
-          "timestamp": "2026-11-21T17:14:21.454Z",
+          "timestamp": "2026-11-21T18:29:54.093Z",
           "error_code": "0",
           "error_message": "",
-          "elapsed": 6,
+          "elapsed": 5,
           "credit_count": 1
         }
       }
     },
     {
       "name": "Global Metrics Latest",
-      "endpoint": "/public-api/v1/global-metrics/quotes/latest?convert=USD",
-      "mode": "live_keyless",
+      "endpoint": "/v1/global-metrics/quotes/latest?convert=USD",
+      "mode": "live_pro",
       "httpStatus": 200,
       "ok": true,
-      "elapsedMs": 2,
+      "elapsedMs": 8,
       "creditCount": 1,
       "errorCode": 0,
       "errorMessage": null,
-      "timestamp": "2026-11-21T17:14:21.514Z",
+      "timestamp": "2026-11-21T18:29:54.704Z",
       "responseSample": {
         "data": {
           "quote": {
             "USD": {
-              "total_market_cap": 2058403619791.6506,
-              "total_volume_24h": 134820598876.73,
-              "total_volume_24h_reported": 781011393756.81,
-              "altcoin_volume_24h": 65742199592.05868,
-              "altcoin_volume_24h_reported": 422475238364.9731,
-              "altcoin_market_cap": 849870675360.4768,
-              "defi_volume_24h": 13353377924.128181,
-              "defi_market_cap": 59258882674.2478,
-              "defi_volume_24h_reported": 147419035144.30737,
-              "defi_24h_percentage_change": 1.0709431096,
-              "stablecoin_volume_24h": 137705977705.50302,
-              "stablecoin_volume_24h_reported": 760272792899.8423,
-              "stablecoin_market_cap": 267368052008.80566,
-              "stablecoin_24h_percentage_change": 23.0663941097,
-              "derivatives_volume_24h": 1023988561608.2692,
-              "derivatives_volume_24h_reported": 1064397328353.0203,
-              "derivatives_24h_percentage_change": -9.2984313876,
-              "total_market_cap_yesterday": 2027738501912.1958,
-              "total_volume_24h_yesterday": 108044222042.49,
-              "total_market_cap_yesterday_percentage_change": 1.51228168,
-              "total_volume_24h_yesterday_percentage_change": 24.78279387,
-              "last_updated": "2026-11-21T17:12:59.999Z"
+              "total_market_cap": 2059196071201.6245,
+              "total_volume_24h": 130608830228.72,
+              "total_volume_24h_reported": 743798811848.43,
+              "altcoin_volume_24h": 63665863536.91082,
+              "altcoin_volume_24h_reported": 397670283513.4636,
+              "altcoin_market_cap": 850227546877.0824,
+              "defi_volume_24h": 12831463215.537945,
+              "defi_market_cap": 59387044580.92327,
+              "defi_volume_24h_reported": 131717377530.58731,
+              "defi_24h_percentage_change": -3.1971125125,
+              "stablecoin_volume_24h": 133464324479.81717,
+              "stablecoin_volume_24h_reported": 724225500131.0244,
+              "stablecoin_market_cap": 267451934785.0863,
+              "stablecoin_24h_percentage_change": 17.6524419498,
+              "derivatives_volume_24h": 988785583237.1014,
+              "derivatives_volume_24h_reported": 1031099724039.0005,
+              "derivatives_24h_percentage_change": -11.5307632254,
+              "total_market_cap_yesterday": 2025624957128.1292,
+              "total_volume_24h_yesterday": 109847653220.32,
+              "total_market_cap_yesterday_percentage_change": 1.65732131,
+              "total_volume_24h_yesterday_percentage_change": 18.89997319,
+              "last_updated": "2026-11-21T18:28:59.999Z"
             }
           },
-          "btc_dominance": 58.712146287107,
-          "eth_dominance": 9.99527924852,
-          "active_cryptocurrencies": 7948,
+          "btc_dominance": 58.710704688702,
+          "eth_dominance": 9.982398105443,
+          "active_cryptocurrencies": 7947,
           "total_cryptocurrencies": 40244,
-          "active_market_pairs": 106428,
+          "active_market_pairs": 106435,
           "active_exchanges": 989,
-          "total_exchanges": 13445,
-          "last_updated": "2026-11-21T17:12:59.999Z",
-          "eth_dominance_yesterday": 9.81400095,
-          "btc_dominance_yesterday": 58.73453106,
-          "eth_dominance_24h_percentage_change": 0.18127829852,
-          "btc_dominance_24h_percentage_change": -0.022384772893,
-          "defi_volume_24h": 13353377924.128181,
-          "defi_volume_24h_reported": 147419035144.30737,
-          "defi_market_cap": 59258882674.2478,
-          "defi_24h_percentage_change": 1.070943109601,
-          "stablecoin_volume_24h": 137705977705.50302,
-          "stablecoin_volume_24h_reported": 760272792899.8423,
-          "stablecoin_market_cap": 267368052008.80566,
-          "stablecoin_24h_percentage_change": 23.066394109731,
-          "derivatives_volume_24h": 1023988561608.2692,
-          "derivatives_volume_24h_reported": 1064397328353.0203,
-          "derivatives_24h_percentage_change": -9.298431387641,
+          "total_exchanges": 13446,
+          "last_updated": "2026-11-21T18:28:59.999Z",
+          "eth_dominance_yesterday": 9.85089908,
+          "btc_dominance_yesterday": 58.55596996,
+          "eth_dominance_24h_percentage_change": 0.131499025443,
+          "btc_dominance_24h_percentage_change": 0.154734728702,
+          "defi_volume_24h": 12831463215.537945,
+          "defi_volume_24h_reported": 131717377530.58731,
+          "defi_market_cap": 59387044580.92327,
+          "defi_24h_percentage_change": -3.197112512462,
+          "stablecoin_volume_24h": 133464324479.81717,
+          "stablecoin_volume_24h_reported": 724225500131.0244,
+          "stablecoin_market_cap": 267451934785.0863,
+          "stablecoin_24h_percentage_change": 17.652441949816,
+          "derivatives_volume_24h": 988785583237.1014,
+          "derivatives_volume_24h_reported": 1031099724039.0005,
+          "derivatives_24h_percentage_change": -11.530763225449,
           "total_crypto_dex_currencies": 66633002,
           "today_incremental_crypto_number": 0,
           "past_24h_incremental_crypto_number": 63284,
@@ -738,10 +1367,10 @@
           }
         },
         "status": {
-          "timestamp": "2026-11-21T17:14:21.514Z",
+          "timestamp": "2026-11-21T18:29:54.704Z",
           "error_code": 0,
           "error_message": null,
-          "elapsed": 2,
+          "elapsed": 8,
           "credit_count": 1,
           "notice": null
         }
@@ -749,26 +1378,26 @@
     },
     {
       "name": "CMC Fear & Greed Latest",
-      "endpoint": "/public-api/v3/fear-and-greed/latest",
-      "mode": "live_keyless",
+      "endpoint": "/v3/fear-and-greed/latest",
+      "mode": "live_pro",
       "httpStatus": 200,
       "ok": true,
-      "elapsedMs": 1,
+      "elapsedMs": 4,
       "creditCount": 1,
       "errorCode": "0",
       "errorMessage": "",
-      "timestamp": "2026-11-21T17:14:21.563Z",
+      "timestamp": "2026-11-21T18:29:55.429Z",
       "responseSample": {
         "data": {
           "value": 8,
-          "update_time": "2026-11-21T17:08:10.276Z",
+          "update_time": "2026-11-21T18:23:10.033Z",
           "value_classification": "Extreme fear"
         },
         "status": {
-          "timestamp": "2026-11-21T17:14:21.563Z",
+          "timestamp": "2026-11-21T18:29:55.429Z",
           "error_code": "0",
           "error_message": "",
-          "elapsed": 1,
+          "elapsed": 4,
           "credit_count": 1
         }
       }

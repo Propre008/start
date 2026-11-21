@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
       fetchCryptoBenchmarks(apiKey, bypassCache),
       fetchGlobalMetrics(apiKey, bypassCache),
       fetchFearAndGreed(apiKey, bypassCache),
-      fetchKeyInfo(apiKey),
+      fetchKeyInfo(apiKey, bypassCache),
     ]);
 
   const traces: ApiTraceEntry[] = [
@@ -61,5 +61,7 @@ export async function GET(request: NextRequest) {
     generatedAt: new Date().toISOString(),
   };
 
-  return NextResponse.json(payload);
+  return NextResponse.json(payload, {
+    headers: overrideKey ? { "Cache-Control": "no-store" } : undefined,
+  });
 }

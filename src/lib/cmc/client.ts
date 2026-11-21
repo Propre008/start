@@ -36,7 +36,41 @@ interface CacheRecord<T> {
   trace: ApiTraceEntry;
 }
 
+const MAX_CACHE_ENTRIES = 200;
 const serverCache = new Map<string, CacheRecord<unknown>>();
+
+export function clearServerCache(): void {
+  serverCache.clear();
+}
+
+function getServerCache<T>(key: string): CacheRecord<T> | null {
+  const cached = serverCache.get(key);
+  if (!cached) return null;
+  if (cached.expiresAt <= Date.now()) {
+    serverCache.delete(key);
+    return null;
+  }
+  // Refresh insertion order for lightweight LRU behavior
+  serverCache.delete(key);
+  serverCache.set(key, cached);
+  return cached as CacheRecord<T>;
+}
+
+function setServerCache<T>(key: string, record: CacheRecord<T>): void {
+  const now = Date.now();
+  if (serverCache.size >= MAX_CACHE_ENTRIES) {
+    for (const [k, v] of serverCache.entries()) {
+      if (v.expiresAt <= now) serverCache.delete(k);
+    }
+  }
+  while (serverCache.size >= MAX_CACHE_ENTRIES) {
+    const oldestKey = serverCache.keys().next().value;
+    if (oldestKey === undefined) break;
+    serverCache.delete(oldestKey);
+  }
+  serverCache.delete(key);
+  serverCache.set(key, record);
+}
 
 function getDefaultTtlMs(): number {
   const parsed = Number(process.env.CMC_CACHE_TTL_SECONDS ?? "60");
@@ -47,17 +81,30 @@ function getDefaultTtlMs(): number {
  * CoinMarketCap Keyless endpoints return error_code as string "0",
  * while authenticated Pro endpoints return numeric 0. Normalize both.
  */
-function isCmcSuccess(status?: Partial<CmcStatus>): boolean {
+export function isCmcSuccess(status?: Partial<CmcStatus>): boolean {
   if (!status) return false;
   return String(status.error_code) === "0";
 }
 
-function summarizePayload(payload: unknown): unknown {
+export function summarizePayload(payload: unknown): unknown {
   if (!payload || typeof payload !== "object") return payload;
   try {
     const serialized = JSON.stringify(payload);
     if (serialized.length <= 1600) return payload;
+    if (Array.isArray(payload)) {
+      return {
+        items: payload.slice(0, 2),
+        _total_returned: payload.length,
+      };
+    }
     const obj = payload as Record<string, unknown>;
+    if (Array.isArray(obj.data)) {
+      return {
+        status: obj.status,
+        data: obj.data.slice(0, 2),
+        _total_returned: obj.data.length,
+      };
+    }
     if (obj.data && typeof obj.data === "object") {
       const dataObj = obj.data as Record<string, unknown>;
       const trimmed: Record<string, unknown> = {};
@@ -70,13 +117,6 @@ function summarizePayload(payload: unknown): unknown {
         }
       }
       return { status: obj.status, data: trimmed };
-    }
-    if (Array.isArray(obj.data)) {
-      return {
-        status: obj.status,
-        data: obj.data.slice(0, 2),
-        _total_returned: obj.data.length,
-      };
     }
     return payload;
   } catch {
@@ -149,11 +189,11 @@ async function fetchCmcEndpoint<T>(options: FetchCmcOptions): Promise<FetchCmcRe
   const isServerKey = apiKey === (process.env.CMC_PRO_API_KEY ?? "").trim();
 
   if (!bypassCache && (useKeyless || isServerKey)) {
-    const cached = serverCache.get(cacheKey);
-    if (cached && cached.expiresAt > Date.now()) {
+    const cached = getServerCache<T>(cacheKey);
+    if (cached) {
       return {
         ok: true,
-        data: cached.value as T,
+        data: cached.value,
         trace: { ...cached.trace, cached: true },
       };
     }
@@ -177,7 +217,13 @@ async function fetchCmcEndpoint<T>(options: FetchCmcOptions): Promise<FetchCmcRe
       signal: AbortSignal.timeout(9000),
     });
 
-    const json = (await response.json()) as { data?: T; status?: CmcStatus };
+    const rawText = await response.text();
+    let json: { data?: T; status?: CmcStatus } | null = null;
+    try {
+      json = JSON.parse(rawText) as { data?: T; status?: CmcStatus };
+    } catch {
+      json = null;
+    }
     const elapsedMs = json?.status?.elapsed ?? Date.now() - startedAt;
 
     if (response.ok && isCmcSuccess(json?.status) && json?.data !== undefined) {
@@ -195,7 +241,7 @@ async function fetchCmcEndpoint<T>(options: FetchCmcOptions): Promise<FetchCmcRe
       };
 
       if (useKeyless || isServerKey) {
-        serverCache.set(cacheKey, {
+        setServerCache(cacheKey, {
           expiresAt: Date.now() + ttlMs,
           value: json.data,
           trace,
@@ -225,7 +271,7 @@ async function fetchCmcEndpoint<T>(options: FetchCmcOptions): Promise<FetchCmcRe
         cached: false,
         timestamp: new Date().toISOString(),
         note: `Fallback to snapshot (CMC error ${json?.status?.error_code ?? response.status}: ${json?.status?.error_message ?? response.statusText})`,
-        samplePayload: summarizePayload(json),
+        samplePayload: json ? summarizePayload(json) : { rawPreview: rawText.slice(0, 240) },
       },
     };
   } catch (err) {
@@ -345,12 +391,19 @@ export async function fetchRwaQuoteLatest(
     };
   }
 
-  const fallback =
-    SNAPSHOT_RWA_QUOTES.find((q) => q.rwa_id === rwaId) ?? SNAPSHOT_RWA_QUOTES[0];
+  const fallback = SNAPSHOT_RWA_QUOTES.find((q) => q.rwa_id === rwaId) ?? null;
   return {
     data: fallback,
     mode: "snapshot" as DataSourceMode,
-    trace: { ...res.trace, samplePayload: summarizePayload({ data: { rwa_assets: [fallback] } }) },
+    trace: {
+      ...res.trace,
+      mode: "snapshot" as DataSourceMode,
+      note:
+        fallback !== null
+          ? res.trace.note
+          : res.trace.note ?? `RWA #${rwaId} not found in live response or reference snapshot`,
+      samplePayload: summarizePayload({ data: { rwa_assets: fallback ? [fallback] : [] } }),
+    },
   };
 }
 
@@ -397,14 +450,42 @@ export async function fetchRwaMarketPairs(
   });
 
   if (res.ok && res.data) {
-    return { data: res.data, mode: res.trace.mode, trace: res.trace };
+    return {
+      data: res.data,
+      mode: res.trace.mode,
+      planRestricted: false,
+      trace: res.trace,
+    };
+  }
+
+  const planRestricted =
+    res.trace.httpStatus === 403 || String(res.status?.error_code) === "1006";
+
+  // When a live Pro key hits a Startup+ tier restriction (403 / 1006), do not mix
+  // stale snapshot prices into live RWA quotes.
+  if (planRestricted) {
+    return {
+      data: null as RwaMarketPairsData | null,
+      mode: "snapshot" as DataSourceMode,
+      planRestricted: true,
+      trace: {
+        ...res.trace,
+        mode: "snapshot" as DataSourceMode,
+        note: "Endpoint requires CoinMarketCap Startup+ plan (HTTP 403 / code 1006) — showing live token-level liquidity instead",
+      },
+    };
   }
 
   const fallback = getSnapshotMarketPairs(rwaId);
   return {
     data: fallback,
     mode: "snapshot" as DataSourceMode,
-    trace: { ...res.trace, samplePayload: summarizePayload({ data: fallback }) },
+    planRestricted: false,
+    trace: {
+      ...res.trace,
+      mode: "snapshot" as DataSourceMode,
+      samplePayload: summarizePayload({ data: fallback }),
+    },
   };
 }
 
@@ -458,7 +539,15 @@ export async function fetchRwaIssuerDetail(
   return {
     data: fallback,
     mode: "snapshot" as DataSourceMode,
-    trace: { ...res.trace, samplePayload: summarizePayload({ data: fallback }) },
+    trace: {
+      ...res.trace,
+      mode: "snapshot" as DataSourceMode,
+      note:
+        fallback !== null
+          ? res.trace.note
+          : res.trace.note ?? `Issuer ${issuerId} not found in live response or reference snapshot`,
+      samplePayload: summarizePayload({ data: fallback }),
+    },
   };
 }
 
@@ -466,23 +555,67 @@ export async function fetchRwaIssuerDetail(
 // 4 Standard / Keyless CMC Context Endpoints
 // ============================================================
 
-interface RawV3Quote {
+export interface RawV3UsdQuote {
+  id?: number;
+  symbol?: string;
+  price?: number;
+  volume_24h?: number;
+  percent_change_24h?: number;
+  percent_change_7d?: number;
+  market_cap?: number;
+  last_updated?: string;
+}
+
+export interface RawV3Quote {
   id: number;
   name: string;
   symbol: string;
   slug: string;
   cmc_rank?: number;
   last_updated?: string;
-  quote?: {
-    USD?: {
-      price?: number;
-      volume_24h?: number;
-      percent_change_24h?: number;
-      percent_change_7d?: number;
-      market_cap?: number;
-      last_updated?: string;
-    };
-  };
+  quote?: RawV3UsdQuote[] | Record<string, RawV3UsdQuote | undefined>;
+}
+
+/**
+ * CoinMarketCap /v3/cryptocurrency/quotes/latest returns `quote` as an array of
+ * conversion objects (`[{ id: 2781, symbol: "USD", price, ... }]`), whereas v1/v2
+ * endpoints return a keyed map (`{ USD: { price, ... } }`). Support both cleanly.
+ */
+export function parseV3CryptoQuotes(
+  rawData: RawV3Quote[] | Record<string, RawV3Quote>
+): CryptoQuoteItem[] {
+  const rawList: RawV3Quote[] = Array.isArray(rawData) ? rawData : Object.values(rawData);
+  const parsed: CryptoQuoteItem[] = [];
+
+  for (const item of rawList) {
+    if (!item || !item.quote) continue;
+    let usd: RawV3UsdQuote | undefined;
+    if (Array.isArray(item.quote)) {
+      usd =
+        item.quote.find((q) => q?.symbol === "USD" || q?.id === 2781) ??
+        item.quote[0];
+    } else if (typeof item.quote === "object") {
+      usd = item.quote.USD ?? Object.values(item.quote).find(Boolean);
+    }
+
+    if (!usd || typeof usd.price !== "number" || !Number.isFinite(usd.price)) continue;
+
+    parsed.push({
+      id: item.id,
+      name: item.name,
+      symbol: item.symbol,
+      slug: item.slug,
+      cmc_rank: item.cmc_rank,
+      price: usd.price,
+      volume_24h: usd.volume_24h ?? 0,
+      percent_change_24h: usd.percent_change_24h ?? 0,
+      percent_change_7d: usd.percent_change_7d ?? 0,
+      market_cap: usd.market_cap ?? 0,
+      last_updated: usd.last_updated ?? item.last_updated ?? new Date().toISOString(),
+    });
+  }
+
+  return parsed;
 }
 
 export async function fetchCryptoBenchmarks(apiKey: string | null, bypassCache = false) {
@@ -497,26 +630,7 @@ export async function fetchCryptoBenchmarks(apiKey: string | null, bypassCache =
   });
 
   if (res.ok && res.data) {
-    const rawList: RawV3Quote[] = Array.isArray(res.data)
-      ? res.data
-      : Object.values(res.data);
-
-    const parsed: CryptoQuoteItem[] = rawList
-      .filter((item) => item && item.quote?.USD)
-      .map((item) => ({
-        id: item.id,
-        name: item.name,
-        symbol: item.symbol,
-        slug: item.slug,
-        cmc_rank: item.cmc_rank,
-        price: item.quote?.USD?.price ?? 0,
-        volume_24h: item.quote?.USD?.volume_24h ?? 0,
-        percent_change_24h: item.quote?.USD?.percent_change_24h ?? 0,
-        percent_change_7d: item.quote?.USD?.percent_change_7d ?? 0,
-        market_cap: item.quote?.USD?.market_cap ?? 0,
-        last_updated: item.quote?.USD?.last_updated ?? item.last_updated ?? new Date().toISOString(),
-      }));
-
+    const parsed = parseV3CryptoQuotes(res.data);
     if (parsed.length > 0) {
       return { data: parsed, mode: res.trace.mode, trace: res.trace };
     }
@@ -527,6 +641,10 @@ export async function fetchCryptoBenchmarks(apiKey: string | null, bypassCache =
     mode: "snapshot" as DataSourceMode,
     trace: {
       ...res.trace,
+      mode: "snapshot" as DataSourceMode,
+      note:
+        res.trace.note ??
+        "Unexpected /v3/cryptocurrency/quotes/latest payload shape — serving snapshot fallback",
       samplePayload: summarizePayload({ data: SNAPSHOT_CRYPTO_BENCHMARKS }),
     },
   };
@@ -592,7 +710,12 @@ export async function fetchFearAndGreed(apiKey: string | null, bypassCache = fal
   return {
     data: SNAPSHOT_FEAR_AND_GREED,
     mode: "snapshot" as DataSourceMode,
-    trace: { ...res.trace, samplePayload: summarizePayload({ data: SNAPSHOT_FEAR_AND_GREED }) },
+    trace: {
+      ...res.trace,
+      mode: "snapshot" as DataSourceMode,
+      note: res.trace.note ?? "Unexpected Fear & Greed payload — serving snapshot fallback",
+      samplePayload: summarizePayload({ data: SNAPSHOT_FEAR_AND_GREED }),
+    },
   };
 }
 
@@ -609,7 +732,7 @@ interface RawKeyInfo {
   };
 }
 
-export async function fetchKeyInfo(apiKey: string | null) {
+export async function fetchKeyInfo(apiKey: string | null, bypassCache = false) {
   if (!apiKey) {
     return { data: null as KeyInfoSummary | null, trace: null as ApiTraceEntry | null };
   }
@@ -618,6 +741,7 @@ export async function fetchKeyInfo(apiKey: string | null) {
     endpoint: "/v1/key/info",
     apiKey,
     ttlMs: 30_000,
+    bypassCache,
   });
 
   if (res.ok && res.data) {

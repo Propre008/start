@@ -1,6 +1,7 @@
 "use client";
 
-import { ArrowUpRight, ExternalLink } from "lucide-react";
+import { useMemo, useState } from "react";
+import { AlertTriangle, ArrowUpRight, ExternalLink, RefreshCw, Search } from "lucide-react";
 import { formatAssetTypeLabel, formatCurrency } from "@/lib/analytics/parity";
 import type { IssuerDetailResponse, RwaIssuerSummary } from "@/lib/cmc/types";
 
@@ -10,6 +11,8 @@ interface IssuerExplorerViewProps {
   onSelectIssuer: (issuerId: string) => void;
   issuerDetail: IssuerDetailResponse | null;
   loading: boolean;
+  error?: string | null;
+  onRetry?: () => void;
   onInspectRwa: (rwaId: number) => void;
 }
 
@@ -19,11 +22,32 @@ export function IssuerExplorerView({
   onSelectIssuer,
   issuerDetail,
   loading,
+  error,
+  onRetry,
   onInspectRwa,
 }: IssuerExplorerViewProps) {
-  const sortedIssuers = [...issuers].sort((a, b) => b.num_tokens - a.num_tokens);
-  const maxTokens = Math.max(1, ...sortedIssuers.map((i) => i.num_tokens));
-  const totalCatalogTokens = sortedIssuers.reduce((sum, i) => sum + i.num_tokens, 0);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [pricedOnly, setPricedOnly] = useState(true);
+
+  const sortedIssuers = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    return [...issuers]
+      .filter((i) => !q || i.name.toLowerCase().includes(q) || i.issuer_id.toLowerCase().includes(q))
+      .sort((a, b) => b.num_tokens - a.num_tokens);
+  }, [issuers, searchQuery]);
+
+  const maxTokens = Math.max(1, ...issuers.map((i) => i.num_tokens));
+  const totalCatalogTokens = issuers.reduce((sum, i) => sum + i.num_tokens, 0);
+
+  const { visibleLinkedAssets, pricedCount, loadedCount } = useMemo(() => {
+    const all = issuerDetail?.linkedAssets ?? [];
+    const priced = all.filter((t) => Boolean(t.rwa && t.rwa.average_tokenized_price > 0));
+    return {
+      visibleLinkedAssets: pricedOnly ? priced : all,
+      pricedCount: priced.length,
+      loadedCount: all.length,
+    };
+  }, [issuerDetail, pricedOnly]);
 
   return (
     <div className="space-y-5">
@@ -42,13 +66,28 @@ export function IssuerExplorerView({
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
         {/* Left 5 cols: Issuer Directory + Catalog Share Bars */}
         <section className="terminal-panel overflow-hidden rounded-lg lg:col-span-5">
-          <div className="flex items-center justify-between border-b border-slate-200/[0.08] px-4 py-3">
-            <h2 className="text-xs font-semibold tracking-wider text-slate-200 uppercase">
-              Tracked Issuers ({sortedIssuers.length})
-            </h2>
-            <span className="num text-xs text-slate-500">
-              {totalCatalogTokens} total linked tokens
-            </span>
+          <div className="space-y-2.5 border-b border-slate-200/[0.08] px-4 py-3">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xs font-semibold tracking-wider text-slate-200 uppercase">
+                Tracked Issuers (<span className="num">{sortedIssuers.length}</span>)
+              </h2>
+              <span className="num text-xs text-slate-500">
+                {totalCatalogTokens.toLocaleString("en-US")} total linked tokens
+              </span>
+            </div>
+            {issuers.length > 6 && (
+              <div className="relative">
+                <Search className="pointer-events-none absolute top-1/2 left-2.5 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" />
+                <input
+                  id="input-issuer-search"
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Filter issuer name..."
+                  className="w-full rounded-md border border-slate-200/[0.1] bg-[#0a0e14] py-1.5 pr-3 pl-8 text-xs text-slate-100 placeholder:text-slate-500 focus:border-[#eab308]/60 focus:outline-none"
+                />
+              </div>
+            )}
           </div>
 
           <div className="divide-y divide-slate-200/[0.05]">
@@ -74,7 +113,8 @@ export function IssuerExplorerView({
                       {issuer.name}
                     </span>
                     <span className="num text-xs text-slate-300">
-                      {issuer.num_tokens} {issuer.num_tokens === 1 ? "token" : "tokens"}
+                      {issuer.num_tokens.toLocaleString("en-US")}{" "}
+                      {issuer.num_tokens === 1 ? "token" : "tokens"}
                     </span>
                   </div>
                   <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-slate-800">
@@ -88,12 +128,34 @@ export function IssuerExplorerView({
                 </button>
               );
             })}
+
+            {sortedIssuers.length === 0 && (
+              <div className="px-4 py-8 text-center text-xs text-slate-400">
+                No issuers match &ldquo;{searchQuery}&rdquo;.
+              </div>
+            )}
           </div>
         </section>
 
         {/* Right 7 cols: Single Issuer Drill-Down */}
         <section className="terminal-panel overflow-hidden rounded-lg lg:col-span-7">
-          {loading || !issuerDetail ? (
+          {!loading && error ? (
+            <div className="flex h-72 flex-col items-center justify-center gap-3 p-6 text-center">
+              <AlertTriangle className="h-5 w-5 text-red-400" />
+              <div className="text-sm font-medium text-slate-100">Unable to load issuer details</div>
+              <p className="max-w-md text-xs text-slate-400">{error}</p>
+              {onRetry && (
+                <button
+                  type="button"
+                  onClick={onRetry}
+                  className="inline-flex items-center gap-1.5 rounded-md bg-[#eab308] px-3 py-1.5 text-xs font-semibold text-[#090c10] hover:bg-[#facc15]"
+                >
+                  <RefreshCw className="h-3.5 w-3.5" />
+                  Retry
+                </button>
+              )}
+            </div>
+          ) : loading || !issuerDetail ? (
             <div className="flex h-72 items-center justify-center text-sm text-slate-400">
               Loading issuer token catalog from /v5/real-world-assets/issuers...
             </div>
@@ -112,9 +174,9 @@ export function IssuerExplorerView({
                 <div className="flex items-center gap-3">
                   <div className="text-right">
                     <div className="num text-lg font-semibold text-[#eab308]">
-                      {issuerDetail.issuer.num_tokens}
+                      {issuerDetail.issuer.num_tokens.toLocaleString("en-US")}
                     </div>
-                    <div className="text-[11px] text-slate-500">Issued Tokens</div>
+                    <div className="text-[11px] text-slate-500">Total Issued Tokens</div>
                   </div>
                   {issuerDetail.issuer.website && (
                     <a
@@ -130,6 +192,42 @@ export function IssuerExplorerView({
                 </div>
               </div>
 
+              {/* Filter & Coverage Bar */}
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200/[0.06] bg-[#0b0f15] px-4 py-2 text-xs">
+                <div className="text-slate-400">
+                  Showing{" "}
+                  <span className="num font-medium text-slate-100">
+                    {visibleLinkedAssets.length}
+                  </span>{" "}
+                  of <span className="num text-slate-200">{loadedCount}</span> loaded (
+                  <span className="num text-emerald-400">{pricedCount}</span> priced ·{" "}
+                  <span className="num text-slate-300">
+                    {issuerDetail.issuer.num_tokens.toLocaleString("en-US")}
+                  </span>{" "}
+                  total issued)
+                </div>
+
+                <button
+                  id="toggle-priced-only"
+                  type="button"
+                  role="switch"
+                  aria-checked={pricedOnly}
+                  onClick={() => setPricedOnly((prev) => !prev)}
+                  className={`inline-flex items-center gap-2 rounded-md border px-2.5 py-1 text-[11px] font-medium transition-colors ${
+                    pricedOnly
+                      ? "border-[#eab308]/45 bg-[#eab308]/15 text-[#eab308]"
+                      : "border-slate-200/[0.1] bg-[#10151d] text-slate-400 hover:text-slate-200"
+                  }`}
+                >
+                  <span
+                    className={`h-1.5 w-1.5 rounded-full ${
+                      pricedOnly ? "bg-[#eab308]" : "bg-slate-500"
+                    }`}
+                  />
+                  <span>Priced only</span>
+                </button>
+              </div>
+
               <div className="terminal-scroll overflow-x-auto">
                 <table className="w-full border-collapse text-left text-xs">
                   <thead>
@@ -142,7 +240,7 @@ export function IssuerExplorerView({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200/[0.05]">
-                    {issuerDetail.linkedAssets.map((token) => (
+                    {visibleLinkedAssets.map((token) => (
                       <tr
                         key={`${token.crypto_id}-${token.rwa_id}`}
                         onClick={() => onInspectRwa(token.rwa_id)}
@@ -175,10 +273,26 @@ export function IssuerExplorerView({
                       </tr>
                     ))}
 
-                    {issuerDetail.linkedAssets.length === 0 && (
+                    {visibleLinkedAssets.length === 0 && (
                       <tr>
                         <td colSpan={5} className="px-4 py-8 text-center text-slate-400">
-                          No linked tokens returned for this issuer on the current page.
+                          {pricedOnly && loadedCount > 0 ? (
+                            <div className="space-y-2">
+                              <p>
+                                None of the <span className="num">{loadedCount}</span> loaded tokens
+                                for this issuer rank inside the top-100 priced RWA index yet.
+                              </p>
+                              <button
+                                type="button"
+                                onClick={() => setPricedOnly(false)}
+                                className="rounded-md border border-[#eab308]/40 bg-[#eab308]/10 px-3 py-1 text-xs font-medium text-[#eab308] hover:bg-[#eab308]/20"
+                              >
+                                Show all {loadedCount} loaded tokens
+                              </button>
+                            </div>
+                          ) : (
+                            "No linked tokens returned for this issuer on the current page."
+                          )}
                         </td>
                       </tr>
                     )}

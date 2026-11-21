@@ -491,9 +491,9 @@ export const SNAPSHOT_RWA_INFO: Record<number, RwaInfoItem> = {
   },
 };
 
-export function getSnapshotMarketPairs(rwaId: number): RwaMarketPairsData {
-  const quote =
-    SNAPSHOT_RWA_QUOTES.find((q) => q.rwa_id === rwaId) ?? SNAPSHOT_RWA_QUOTES[0];
+export function getSnapshotMarketPairs(rwaId: number): RwaMarketPairsData | null {
+  const quote = SNAPSHOT_RWA_QUOTES.find((q) => q.rwa_id === rwaId);
+  if (!quote) return null;
   const baseVenues = [
     { exchange_id: 270, name: "Binance", slug: "binance", weight: 0.38, bpsOffset: -2.1 },
     { exchange_id: 521, name: "Bybit", slug: "bybit", weight: 0.24, bpsOffset: 1.4 },
@@ -619,9 +619,9 @@ export const SNAPSHOT_ISSUERS: RwaIssuerSummary[] = [
   },
 ];
 
-export function getSnapshotIssuerDetail(issuerId: string): RwaIssuerDetail {
-  const issuer =
-    SNAPSHOT_ISSUERS.find((i) => i.issuer_id === issuerId) ?? SNAPSHOT_ISSUERS[0];
+export function getSnapshotIssuerDetail(issuerId: string): RwaIssuerDetail | null {
+  const issuer = SNAPSHOT_ISSUERS.find((i) => i.issuer_id === issuerId);
+  if (!issuer) return null;
   const tokens = SNAPSHOT_RWA_QUOTES.flatMap((rwa) =>
     rwa.tokens
       .filter((t) => t.issuer_id === issuer.issuer_id)

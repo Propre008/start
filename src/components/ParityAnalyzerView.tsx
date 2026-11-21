@@ -1,6 +1,7 @@
 "use client";
 
-import { ExternalLink, ShieldAlert, ShieldCheck } from "lucide-react";
+import { useState } from "react";
+import { AlertTriangle, ExternalLink, RefreshCw, ShieldAlert, ShieldCheck } from "lucide-react";
 import {
   formatAssetTypeLabel,
   formatBps,
@@ -15,7 +16,23 @@ interface ParityAnalyzerViewProps {
   onSelectRwa: (rwaId: number) => void;
   detail: RwaDetailResponse | null;
   loading: boolean;
+  error?: string | null;
+  onRetry?: () => void;
   onSelectIssuer: (issuerId: string) => void;
+}
+
+function formatCmcDescription(raw: string | null | undefined): string[] {
+  if (!raw) return [];
+  const cleaned = raw
+    .replace(/^#{1,6}\s+.*$/gm, "")
+    .replace(/\[([^\]]+)\]\s*\((https?:\/\/[^)]+)\)/g, "$1")
+    .replace(/\r/g, "")
+    .trim();
+
+  return cleaned
+    .split(/\n{2,}/)
+    .map((p) => p.replace(/\s+/g, " ").trim())
+    .filter((p) => p.length > 0);
 }
 
 export function ParityAnalyzerView({
@@ -24,16 +41,36 @@ export function ParityAnalyzerView({
   onSelectRwa,
   detail,
   loading,
+  error,
+  onRetry,
   onSelectIssuer,
 }: ParityAnalyzerViewProps) {
+  const [expandedDescRwaId, setExpandedDescRwaId] = useState<number | null>(null);
+
   const parity = detail?.parity;
   const quote = detail?.quote;
   const info = detail?.info;
   const frag = detail?.fragmentation;
 
-  const maxAbsDevBps = parity
-    ? Math.max(10, ...parity.tokens.map((t) => Math.abs(t.deviationBps)))
+  const comparableTokens = parity
+    ? parity.tokens.filter((t) => t.parityStatus === "INCLUDED")
+    : [];
+  const rulerTokens =
+    comparableTokens.length > 0 ? comparableTokens : (parity?.tokens ?? []);
+
+  const maxAbsDevBps = rulerTokens.length
+    ? Math.max(10, ...rulerTokens.map((t) => Math.abs(t.deviationBps)))
     : 25;
+
+  const descriptionParagraphs = formatCmcDescription(info?.about?.description);
+  const descExpanded = quote !== undefined && expandedDescRwaId === quote.rwa_id;
+  const visibleParagraphs = descExpanded
+    ? descriptionParagraphs
+    : descriptionParagraphs.slice(0, 2);
+
+  const liquidTokenBars = parity
+    ? parity.tokens.filter((t) => t.volume_24h > 0).sort((a, b) => b.volume_24h - a.volume_24h)
+    : [];
 
   return (
     <div className="space-y-5">
@@ -68,10 +105,41 @@ export function ParityAnalyzerView({
               </button>
             );
           })}
+          {rwaAssets.length > 8 && (
+            <select
+              id="select-rwa-all"
+              aria-label="Select any ranked RWA asset"
+              value={selectedRwaId}
+              onChange={(e) => onSelectRwa(Number(e.target.value))}
+              className="num rounded-md border border-slate-200/[0.12] bg-[#10151d] px-2.5 py-1 text-xs text-slate-200 focus:border-[#eab308]/60 focus:outline-none"
+            >
+              {rwaAssets.map((item) => (
+                <option key={item.rwa_id} value={item.rwa_id}>
+                  #{item.rwa_rank} {item.symbol} — {item.name}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
       </div>
 
-      {loading || !detail || !parity || !quote || !frag ? (
+      {!loading && error ? (
+        <div className="terminal-panel flex h-72 flex-col items-center justify-center gap-3 rounded-lg p-6 text-center">
+          <AlertTriangle className="h-5 w-5 text-red-400" />
+          <div className="text-sm font-medium text-slate-100">Unable to load RWA parity profile</div>
+          <p className="max-w-md text-xs text-slate-400">{error}</p>
+          {onRetry && (
+            <button
+              type="button"
+              onClick={onRetry}
+              className="inline-flex items-center gap-1.5 rounded-md bg-[#eab308] px-3 py-1.5 text-xs font-semibold text-[#090c10] hover:bg-[#facc15]"
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+              Retry
+            </button>
+          )}
+        </div>
+      ) : loading || !detail || !parity || !quote || !frag ? (
         <div className="terminal-panel flex h-72 items-center justify-center rounded-lg text-sm text-slate-400">
           Fetching live RWA quotes, metadata, and market pairs from CoinMarketCap v5...
         </div>
@@ -120,7 +188,7 @@ export function ParityAnalyzerView({
                 </span>
               </div>
               <div className="num mt-2 text-2xl font-semibold text-slate-50">
-                {parity.hhiScore.toLocaleString()}
+                {parity.hhiScore.toLocaleString("en-US")}
                 <span className="text-xs font-normal text-slate-500"> / 10,000</span>
               </div>
               <div className="mt-1 truncate text-xs text-slate-500">
@@ -131,19 +199,36 @@ export function ParityAnalyzerView({
 
             <div className="terminal-panel rounded-lg p-4">
               <div className="text-[11px] font-medium tracking-wider text-slate-400 uppercase">
-                Venue Fragmentation
+                {detail.pairsPlanRestricted ? "Token 24h Liquidity" : "Venue Fragmentation"}
               </div>
-              <div className="num mt-2 text-2xl font-semibold text-slate-50">
-                {frag.uniqueExchanges} venues
-                <span className="text-xs font-normal text-slate-500">
-                  {" "}
-                  · {frag.totalPairs} pairs
-                </span>
-              </div>
-              <div className="mt-1 text-xs text-slate-500">
-                Top venue: <span className="text-slate-300">{frag.topExchangeName}</span> (
-                <span className="num">{frag.topExchangeSharePct.toFixed(1)}%</span>)
-              </div>
+              {detail.pairsPlanRestricted ? (
+                <>
+                  <div className="num mt-2 text-2xl font-semibold text-slate-50">
+                    {formatCurrency(parity.totalTokenVolume24h, true)}
+                  </div>
+                  <div className="mt-1 text-xs text-slate-500">
+                    Turnover{" "}
+                    <span className="num text-slate-300">
+                      {formatPercent(parity.turnoverRatioPct)}
+                    </span>{" "}
+                    · Pairs require Startup+
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="num mt-2 text-2xl font-semibold text-slate-50">
+                    {frag.uniqueExchanges} venues
+                    <span className="text-xs font-normal text-slate-500">
+                      {" "}
+                      · {frag.totalPairs} pairs
+                    </span>
+                  </div>
+                  <div className="mt-1 text-xs text-slate-500">
+                    Top venue: <span className="text-slate-300">{frag.topExchangeName}</span> (
+                    <span className="num">{frag.topExchangeSharePct.toFixed(1)}%</span>)
+                  </div>
+                </>
+              )}
             </div>
           </section>
 
@@ -157,6 +242,13 @@ export function ParityAnalyzerView({
                 <p className="mt-0.5 text-xs text-slate-500">
                   Positive bps indicates trading at a premium to the CMC aggregate average; negative
                   bps indicates a discount.
+                  {parity.excludedTokenCount > 0 && (
+                    <span className="text-amber-300/90">
+                      {" "}
+                      ({parity.excludedTokenCount} unit-scaled or zero-liquidity token
+                      {parity.excludedTokenCount === 1 ? "" : "s"} excluded from spread calculation)
+                    </span>
+                  )}
                 </p>
               </div>
               <div className="num text-xs text-slate-400">
@@ -165,10 +257,10 @@ export function ParityAnalyzerView({
               </div>
             </div>
 
-            {/* SVG Basis-Point Deviation Chart */}
+            {/* Basis-Point Deviation Chart */}
             <div className="border-b border-slate-200/[0.06] bg-[#0c1016] px-4 py-4">
               <div className="space-y-3">
-                {parity.tokens.map((token) => {
+                {rulerTokens.map((token) => {
                   const pctOffset = Math.min(48, (Math.abs(token.deviationBps) / maxAbsDevBps) * 48);
                   const isPremium = token.deviationBps >= 0;
                   const barColor =
@@ -194,9 +286,7 @@ export function ParityAnalyzerView({
 
                       <div className="col-span-5 sm:col-span-6">
                         <div className="relative h-5 w-full rounded bg-slate-900/90">
-                          {/* Center zero-parity axis */}
                           <div className="absolute inset-y-0 left-1/2 w-px bg-slate-600/60" />
-                          {/* Deviation bar */}
                           <div
                             className="absolute top-1 bottom-1 rounded-[2px] transition-all duration-300"
                             style={{
@@ -257,7 +347,25 @@ export function ParityAnalyzerView({
                       className="transition-colors hover:bg-[#161e29]"
                     >
                       <td className="px-4 py-3">
-                        <div className="font-medium text-slate-100">{t.symbol}</div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-slate-100">{t.symbol}</span>
+                          {t.parityStatus === "UNIT_MISMATCH" && (
+                            <span
+                              title="Different denomination/unit scale vs underlying benchmark (excluded from inter-issuer spread)"
+                              className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-medium text-amber-300"
+                            >
+                              Unit-Scaled
+                            </span>
+                          )}
+                          {t.parityStatus === "NO_LIQUIDITY" && (
+                            <span
+                              title="Zero reported market cap and 24h volume (excluded from inter-issuer spread)"
+                              className="rounded bg-slate-700/70 px-1.5 py-0.5 text-[10px] font-medium text-slate-300"
+                            >
+                              No Spot Liq
+                            </span>
+                          )}
+                        </div>
                         <div className="text-[11px] text-slate-500">{t.name}</div>
                       </td>
                       <td className="px-4 py-3">
@@ -274,14 +382,20 @@ export function ParityAnalyzerView({
                       </td>
                       <td
                         className={`num px-4 py-3 text-right ${
-                          Math.abs(t.deviationBps) > 35
-                            ? "text-red-400"
-                            : t.deviationBps >= 0
-                              ? "text-emerald-400"
-                              : "text-sky-400"
+                          t.parityStatus !== "INCLUDED"
+                            ? "text-slate-500"
+                            : Math.abs(t.deviationBps) > 35
+                              ? "text-red-400"
+                              : t.deviationBps >= 0
+                                ? "text-emerald-400"
+                                : "text-sky-400"
                         }`}
                       >
-                        {formatBps(t.deviationBps, true)}
+                        {t.parityStatus === "UNIT_MISMATCH"
+                          ? "Excl. (unit)"
+                          : t.parityStatus === "NO_LIQUIDITY"
+                            ? "Excl. (0 liq)"
+                            : formatBps(t.deviationBps, true)}
                       </td>
                       <td className="num px-4 py-3 text-right text-slate-200">
                         {formatCurrency(t.market_cap, true)}
@@ -304,83 +418,127 @@ export function ParityAnalyzerView({
 
           {/* Lower Split: Venue Fragmentation + Asset Metadata & TradFi Markets */}
           <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
-            {/* Left 7 cols: Active Venues & Market Pairs */}
+            {/* Left 7 cols: Active Venues & Market Pairs (or Live Token Liquidity when Basic plan) */}
             <section className="terminal-panel overflow-hidden rounded-lg lg:col-span-7">
               <div className="flex items-center justify-between border-b border-slate-200/[0.08] px-4 py-3">
                 <h2 className="text-xs font-semibold tracking-wider text-slate-200 uppercase">
-                  Venue Liquidity &amp; Active Market Pairs
+                  {detail.pairsPlanRestricted
+                    ? "Live Token 24h Liquidity Distribution"
+                    : "Venue Liquidity & Active Market Pairs"}
                 </h2>
                 <span className="num text-xs text-slate-500">
-                  Cross-venue spread: {formatBps(frag.priceSpreadAcrossVenuesBps)}
+                  {detail.pairsPlanRestricted
+                    ? "CMC Startup+ unlocks CEX/DEX pairs"
+                    : `Cross-venue spread: ${formatBps(frag.priceSpreadAcrossVenuesBps)}`}
                 </span>
               </div>
 
-              <div className="space-y-2.5 border-b border-slate-200/[0.06] bg-[#0c1016] p-4">
-                {frag.byExchange.slice(0, 5).map((venue) => (
-                  <div key={venue.exchangeName} className="space-y-1">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="font-medium text-slate-200">
-                        {venue.exchangeName}{" "}
-                        <span className="num text-[11px] text-slate-500">
-                          ({venue.pairCount} {venue.pairCount === 1 ? "pair" : "pairs"})
-                        </span>
-                      </span>
-                      <span className="num text-slate-300">
-                        {formatCurrency(venue.volume24h, true)}{" "}
-                        <span className="text-slate-500">({venue.sharePct.toFixed(1)}%)</span>
-                      </span>
-                    </div>
-                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-800">
-                      <div
-                        className="h-full rounded-full bg-[#eab308]"
-                        style={{ width: `${Math.max(venue.sharePct, 2)}%` }}
-                      />
-                    </div>
+              {detail.pairsPlanRestricted ? (
+                <div className="space-y-4 p-4">
+                  <div className="rounded-md border border-amber-500/25 bg-amber-500/[0.06] px-3 py-2.5 text-xs text-amber-200">
+                    {detail.pairsNote}
                   </div>
-                ))}
-              </div>
+                  <div className="space-y-2.5">
+                    {liquidTokenBars.map((tok) => (
+                      <div key={`${tok.crypto_id}-${tok.symbol}`} className="space-y-1">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-medium text-slate-200">
+                            <span className="num">{tok.symbol}</span>{" "}
+                            <span className="text-[11px] text-slate-500">({tok.issuer_name})</span>
+                          </span>
+                          <span className="num text-slate-300">
+                            {formatCurrency(tok.volume_24h, true)}{" "}
+                            <span className="text-slate-500">
+                              ({tok.volumeSharePct.toFixed(1)}%)
+                            </span>
+                          </span>
+                        </div>
+                        <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-800">
+                          <div
+                            className="h-full rounded-full bg-[#eab308]"
+                            style={{ width: `${Math.max(tok.volumeSharePct, 1.5)}%` }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                    {liquidTokenBars.length === 0 && (
+                      <p className="text-xs text-slate-500">
+                        No reported 24h token volume for this asset.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="space-y-2.5 border-b border-slate-200/[0.06] bg-[#0c1016] p-4">
+                    {frag.byExchange.slice(0, 5).map((venue) => (
+                      <div key={venue.exchangeName} className="space-y-1">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-medium text-slate-200">
+                            {venue.exchangeName}{" "}
+                            <span className="num text-[11px] text-slate-500">
+                              ({venue.pairCount} {venue.pairCount === 1 ? "pair" : "pairs"})
+                            </span>
+                          </span>
+                          <span className="num text-slate-300">
+                            {formatCurrency(venue.volume24h, true)}{" "}
+                            <span className="text-slate-500">({venue.sharePct.toFixed(1)}%)</span>
+                          </span>
+                        </div>
+                        <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-800">
+                          <div
+                            className="h-full rounded-full bg-[#eab308]"
+                            style={{ width: `${Math.max(venue.sharePct, 2)}%` }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
 
-              <div className="terminal-scroll overflow-x-auto">
-                <table className="w-full border-collapse text-left text-xs">
-                  <thead>
-                    <tr className="border-b border-slate-200/[0.08] text-[11px] font-medium tracking-wider text-slate-400 uppercase">
-                      <th className="px-4 py-2.5">Exchange</th>
-                      <th className="px-4 py-2.5">Pair</th>
-                      <th className="px-4 py-2.5">Type</th>
-                      <th className="px-4 py-2.5 text-right">Price</th>
-                      <th className="px-4 py-2.5 text-right">24h Volume</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-200/[0.05]">
-                    {detail.pairs.market_pairs.slice(0, 8).map((pair) => {
-                      const usd = pair.quotes?.find((q) => q.symbol === "USD") ?? pair.quotes?.[0];
-                      const price = usd?.price ?? pair.exchange_reported_quotes?.price ?? 0;
-                      const vol =
-                        usd?.volume_24h ?? pair.exchange_reported_quotes?.volume_24h_quote ?? 0;
-                      return (
-                        <tr
-                          key={`${pair.market_id}-${pair.market_pair}`}
-                          className="hover:bg-[#161e29]"
-                        >
-                          <td className="px-4 py-2.5 font-medium text-slate-200">
-                            {pair.exchange.name}
-                          </td>
-                          <td className="num px-4 py-2.5 text-slate-300">{pair.market_pair}</td>
-                          <td className="px-4 py-2.5 uppercase text-[11px] text-slate-400">
-                            {pair.category}
-                          </td>
-                          <td className="num px-4 py-2.5 text-right text-slate-200">
-                            {formatCurrency(price)}
-                          </td>
-                          <td className="num px-4 py-2.5 text-right text-slate-300">
-                            {formatCurrency(vol, true)}
-                          </td>
+                  <div className="terminal-scroll overflow-x-auto">
+                    <table className="w-full border-collapse text-left text-xs">
+                      <thead>
+                        <tr className="border-b border-slate-200/[0.08] text-[11px] font-medium tracking-wider text-slate-400 uppercase">
+                          <th className="px-4 py-2.5">Exchange</th>
+                          <th className="px-4 py-2.5">Pair</th>
+                          <th className="px-4 py-2.5">Type</th>
+                          <th className="px-4 py-2.5 text-right">Price</th>
+                          <th className="px-4 py-2.5 text-right">24h Volume</th>
                         </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+                      </thead>
+                      <tbody className="divide-y divide-slate-200/[0.05]">
+                        {detail.pairs.market_pairs.slice(0, 8).map((pair) => {
+                          const usd =
+                            pair.quotes?.find((q) => q.symbol === "USD") ?? pair.quotes?.[0];
+                          const price = usd?.price ?? pair.exchange_reported_quotes?.price ?? 0;
+                          const vol =
+                            usd?.volume_24h ?? pair.exchange_reported_quotes?.volume_24h_quote ?? 0;
+                          return (
+                            <tr
+                              key={`${pair.market_id}-${pair.market_pair}`}
+                              className="hover:bg-[#161e29]"
+                            >
+                              <td className="px-4 py-2.5 font-medium text-slate-200">
+                                {pair.exchange.name}
+                              </td>
+                              <td className="num px-4 py-2.5 text-slate-300">{pair.market_pair}</td>
+                              <td className="px-4 py-2.5 text-[11px] text-slate-400 uppercase">
+                                {pair.category}
+                              </td>
+                              <td className="num px-4 py-2.5 text-right text-slate-200">
+                                {formatCurrency(price)}
+                              </td>
+                              <td className="num px-4 py-2.5 text-right text-slate-300">
+                                {formatCurrency(vol, true)}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              )}
             </section>
 
             {/* Right 5 cols: Underlying Asset Metadata & TradFi Reference */}
@@ -393,12 +551,30 @@ export function ParityAnalyzerView({
                   <span className="num text-[11px] text-slate-500">rwa_id:{quote.rwa_id}</span>
                 </div>
 
-                <p className="text-xs leading-relaxed text-slate-300">
-                  {info?.about?.description ??
-                    `${quote.name} (${quote.symbol}) is a tokenized ${formatAssetTypeLabel(
-                      quote.asset_type
-                    ).toLowerCase()} asset tracked across CoinMarketCap RWA v5 endpoints.`}
-                </p>
+                <div className="space-y-2 text-xs leading-relaxed text-slate-300">
+                  {visibleParagraphs.length > 0 ? (
+                    visibleParagraphs.map((para, idx) => <p key={idx}>{para}</p>)
+                  ) : (
+                    <p>
+                      {`${quote.name} (${quote.symbol}) is a tokenized ${formatAssetTypeLabel(
+                        quote.asset_type
+                      ).toLowerCase()} asset tracked across CoinMarketCap RWA v5 endpoints.`}
+                    </p>
+                  )}
+                  {descriptionParagraphs.length > 2 && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setExpandedDescRwaId(descExpanded ? null : quote.rwa_id)
+                      }
+                      className="text-[11px] font-medium text-[#eab308] hover:underline"
+                    >
+                      {descExpanded
+                        ? "Show concise summary"
+                        : `Read full CMC profile (${descriptionParagraphs.length} sections)`}
+                    </button>
+                  )}
+                </div>
 
                 <dl className="grid grid-cols-2 gap-3 text-xs">
                   <div className="terminal-subpanel rounded p-2.5">
@@ -423,7 +599,7 @@ export function ParityAnalyzerView({
                     <dt className="text-[11px] text-slate-500">Founded / Employees</dt>
                     <dd className="num mt-0.5 font-medium text-slate-200">
                       {info?.founded ? info.founded.slice(0, 4) : "—"}
-                      {info?.employees ? ` · ${info.employees.toLocaleString()}` : ""}
+                      {info?.employees ? ` · ${info.employees.toLocaleString("en-US")}` : ""}
                     </dd>
                   </div>
                 </dl>
@@ -473,7 +649,7 @@ export function ParityAnalyzerView({
                       ? `Single-issuer exposure (${parity.dominantIssuer}). No competing on-chain arbitrageur exists to enforce tighter secondary-market pegs.`
                       : parity.grade === "WIDE"
                         ? `Elevated cross-issuer price dispersion (${formatBps(parity.spreadBps)}). Verify redemption fees and venue depth before routing size.`
-                        : `Healthy secondary parity (${formatBps(parity.spreadBps)}) across ${parity.issuerCount} competing issuers with HHI ${parity.hhiScore.toLocaleString()}.`}
+                        : `Healthy secondary parity (${formatBps(parity.spreadBps)}) across ${parity.issuerCount} competing issuers with HHI ${parity.hhiScore.toLocaleString("en-US")}.`}
                   </div>
                 </div>
               </div>

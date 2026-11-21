@@ -31,9 +31,36 @@ export async function GET(
     fetchRwaMarketPairs(rwaId, apiKey, bypassCache),
   ]);
 
-  const parity = computeParityMetrics(quoteRes.data);
-  const fragmentation = computeVenueFragmentation(pairsRes.data);
   const traces = [quoteRes.trace, infoRes.trace, pairsRes.trace];
+
+  if (!quoteRes.data) {
+    return NextResponse.json(
+      {
+        error: `RWA asset #${rwaId} could not be retrieved from CoinMarketCap or reference snapshots.`,
+        traces,
+      },
+      { status: 404, headers: { "Cache-Control": "no-store" } }
+    );
+  }
+
+  const emptyPairsData = {
+    rwa_id: quoteRes.data.rwa_id,
+    name: quoteRes.data.name,
+    symbol: quoteRes.data.symbol,
+    num_market_pairs: 0,
+    market_pairs: [],
+    total_size: 0,
+    has_more: false,
+  };
+
+  // Never mix stale snapshot pairs into a live Pro RWA quote page
+  const pairsData =
+    quoteRes.mode === "live_pro" && pairsRes.mode !== "live_pro"
+      ? emptyPairsData
+      : (pairsRes.data ?? emptyPairsData);
+
+  const parity = computeParityMetrics(quoteRes.data);
+  const fragmentation = computeVenueFragmentation(pairsData);
 
   const mode: DataSourceMode = traces.some((t) => t.mode === "live_pro")
     ? "live_pro"
@@ -43,12 +70,18 @@ export async function GET(
     mode,
     quote: quoteRes.data,
     info: infoRes.data,
-    pairs: pairsRes.data,
+    pairs: pairsData,
+    pairsPlanRestricted: pairsRes.planRestricted,
+    pairsNote: pairsRes.planRestricted
+      ? "CoinMarketCap /v5/real-world-assets/market-pairs/list requires a Startup+ plan (HTTP 403 / code 1006). Displaying live per-token 24h liquidity shares from /v5/real-world-assets/quotes/latest."
+      : undefined,
     parity,
     fragmentation,
     traces,
     generatedAt: new Date().toISOString(),
   };
 
-  return NextResponse.json(payload);
+  return NextResponse.json(payload, {
+    headers: overrideKey ? { "Cache-Control": "no-store" } : undefined,
+  });
 }

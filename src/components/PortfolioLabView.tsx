@@ -1,9 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { AlertTriangle, CheckCircle2 } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Plus, X } from "lucide-react";
 import { formatAssetTypeLabel, formatCurrency, formatPercent } from "@/lib/analytics/parity";
-import type { OverviewResponse } from "@/lib/cmc/types";
+import type { OverviewResponse, RwaAssetType, RwaListItem } from "@/lib/cmc/types";
 
 interface PortfolioLabViewProps {
   overview: OverviewResponse;
@@ -21,21 +21,51 @@ interface HoldingInput {
   rwaId?: number;
 }
 
-const PRESETS: Record<string, { label: string; desc: string; quantities: Record<string, number> }> = {
+interface RwaPresetLeg {
+  preferredSymbols: string[];
+  fallbackType: RwaAssetType;
+  targetUsd: number;
+}
+
+interface PresetSpec {
+  label: string;
+  desc: string;
+  cryptoUnits: Record<string, number>;
+  rwaLegs: RwaPresetLeg[];
+}
+
+const PRESETS: Record<string, PresetSpec> = {
   gold_hedge: {
     label: "Gold-Hedged Crypto",
-    desc: "60% core crypto + 40% tokenized gold & T-bills",
-    quantities: { BTC: 0.45, ETH: 6, SOL: 25, GOLD: 3.5, USTB: 120, NVDA: 20, SPY: 10 },
+    desc: "Core crypto paired with tokenized gold, sovereign T-bills & equities",
+    cryptoUnits: { BTC: 0.45, ETH: 6, SOL: 25 },
+    rwaLegs: [
+      { preferredSymbols: ["GOLD", "XAU", "PAXG", "XAUT"], fallbackType: "commodity", targetUsd: 15_400 },
+      { preferredSymbols: ["USTB", "USYC", "BUIDL", "OUSG"], fallbackType: "government_security", targetUsd: 12_000 },
+      { preferredSymbols: ["NVDA", "NVDAX"], fallbackType: "stock", targetUsd: 4_500 },
+      { preferredSymbols: ["SPY", "CSPX"], fallbackType: "etf", targetUsd: 6_200 },
+    ],
   },
   treasury_barbell: {
     label: "Treasury Barbell",
     desc: "Yield-heavy sovereign RWA base with BTC/ETH upside",
-    quantities: { BTC: 0.25, ETH: 4, USDT: 5000, USTB: 350, GOLD: 2, SPY: 15 },
+    cryptoUnits: { BTC: 0.25, ETH: 4, USDT: 5000 },
+    rwaLegs: [
+      { preferredSymbols: ["USTB", "USYC", "BUIDL", "OUSG"], fallbackType: "government_security", targetUsd: 35_000 },
+      { preferredSymbols: ["GOLD", "XAU", "PAXG", "XAUT"], fallbackType: "commodity", targetUsd: 8_800 },
+      { preferredSymbols: ["SPY", "CSPX"], fallbackType: "etf", targetUsd: 9_300 },
+    ],
   },
   ai_equities: {
     label: "AI & Equities Blend",
     desc: "On-chain tech equities + major Layer-1s",
-    quantities: { BTC: 0.3, ETH: 5, SOL: 40, NVDA: 60, AAPL: 25, TSLA: 15, SPY: 12 },
+    cryptoUnits: { BTC: 0.3, ETH: 5, SOL: 40 },
+    rwaLegs: [
+      { preferredSymbols: ["NVDA", "NVDAX"], fallbackType: "stock", targetUsd: 13_600 },
+      { preferredSymbols: ["AAPL", "AAPLX"], fallbackType: "stock", targetUsd: 6_200 },
+      { preferredSymbols: ["TSLA", "TSLAX"], fallbackType: "stock", targetUsd: 5_500 },
+      { preferredSymbols: ["SPY", "CSPX"], fallbackType: "etf", targetUsd: 7_400 },
+    ],
   },
 };
 
@@ -49,39 +79,137 @@ const CLASS_COLORS: Record<string, string> = {
   "Real Estate": "#cbd5e1",
 };
 
+function roundPresetUnits(targetUsd: number, price: number): number {
+  if (!Number.isFinite(price) || price <= 0) return 1;
+  const raw = targetUsd / price;
+  if (raw >= 50) return Math.round(raw);
+  if (raw >= 5) return Number(raw.toFixed(1));
+  return Math.max(0.05, Number(raw.toFixed(2)));
+}
+
+/**
+ * Always format decimals with a dot (.) regardless of browser OS locale
+ * so unit inputs stay visually consistent with USD prices ($60,061.86).
+ */
+function formatDotDecimal(value: number): string {
+  if (!Number.isFinite(value) || value <= 0) return "0";
+  return String(Number(value.toFixed(6)));
+}
+
+function sanitizeDecimalDraft(raw: string): string {
+  const normalized = raw.replace(/,/g, ".").replace(/[^0-9.]/g, "");
+  const firstDot = normalized.indexOf(".");
+  if (firstDot === -1) return normalized;
+  return normalized.slice(0, firstDot + 1) + normalized.slice(firstDot + 1).replace(/\./g, "");
+}
+
+function resolvePresetAllocation(
+  presetKey: string,
+  rwaAssets: RwaListItem[]
+): Record<string, number> {
+  const spec = PRESETS[presetKey] ?? PRESETS.gold_hedge;
+  const quantities: Record<string, number> = {};
+  for (const [symbol, qty] of Object.entries(spec.cryptoUnits)) {
+    if (qty > 0) quantities[`crypto-${symbol}`] = qty;
+  }
+
+  const usedIds = new Set<number>();
+
+  for (const leg of spec.rwaLegs) {
+    const preferredUpper = new Set(leg.preferredSymbols.map((s) => s.toUpperCase()));
+    const match =
+      rwaAssets.find(
+        (a) => !usedIds.has(a.rwa_id) && preferredUpper.has(a.symbol.toUpperCase())
+      ) ??
+      rwaAssets.find((a) => !usedIds.has(a.rwa_id) && a.asset_type === leg.fallbackType) ??
+      rwaAssets.find((a) => !usedIds.has(a.rwa_id) && a.average_tokenized_price > 0);
+
+    if (match) {
+      usedIds.add(match.rwa_id);
+      quantities[`rwa-${match.rwa_id}`] = roundPresetUnits(
+        leg.targetUsd,
+        match.average_tokenized_price
+      );
+    }
+  }
+
+  return quantities;
+}
+
 export function PortfolioLabView({ overview, onInspectRwa }: PortfolioLabViewProps) {
   const [activePreset, setActivePreset] = useState<string>("gold_hedge");
-  const [quantities, setQuantities] = useState<Record<string, number>>(
-    PRESETS.gold_hedge.quantities
+  const [customQuantities, setCustomQuantities] = useState<Record<string, number>>({});
+  const [assetToAdd, setAssetToAdd] = useState<string>("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingDraft, setEditingDraft] = useState<string>("");
+
+  const presetQuantities = useMemo(
+    () =>
+      resolvePresetAllocation(
+        activePreset === "custom" ? "gold_hedge" : activePreset,
+        overview.rwaAssets
+      ),
+    [activePreset, overview.rwaAssets]
   );
 
-  const availablePositions = useMemo<HoldingInput[]>(() => {
-    const cryptoRows: HoldingInput[] = overview.cryptoBenchmarks.map((c) => ({
-      id: `crypto-${c.symbol}`,
-      sleeve: "crypto",
-      symbol: c.symbol,
-      name: c.name,
-      assetClass: "Crypto",
-      price: c.price,
-      quantity: quantities[c.symbol] ?? 0,
-    }));
+  const effectiveQuantities =
+    activePreset === "custom" ? customQuantities : presetQuantities;
 
-    const rwaRows: HoldingInput[] = overview.rwaAssets.slice(0, 8).map((r) => ({
-      id: `rwa-${r.rwa_id}`,
-      sleeve: "rwa",
-      symbol: r.symbol,
-      name: r.name,
-      assetClass: formatAssetTypeLabel(r.asset_type),
-      price: r.average_tokenized_price,
-      quantity: quantities[r.symbol] ?? 0,
-      rwaId: r.rwa_id,
-    }));
+  const catalogPositions = useMemo<HoldingInput[]>(() => {
+    const cryptoRows: HoldingInput[] = overview.cryptoBenchmarks.map((c) => {
+      const id = `crypto-${c.symbol}`;
+      return {
+        id,
+        sleeve: "crypto",
+        symbol: c.symbol,
+        name: c.name,
+        assetClass: "Crypto",
+        price: c.price,
+        quantity: effectiveQuantities[id] ?? 0,
+      };
+    });
+
+    const rwaRows: HoldingInput[] = overview.rwaAssets.map((r) => {
+      const id = `rwa-${r.rwa_id}`;
+      return {
+        id,
+        sleeve: "rwa",
+        symbol: r.symbol,
+        name: r.name,
+        assetClass: formatAssetTypeLabel(r.asset_type),
+        price: r.average_tokenized_price,
+        quantity: effectiveQuantities[id] ?? 0,
+        rwaId: r.rwa_id,
+      };
+    });
 
     return [...cryptoRows, ...rwaRows];
-  }, [overview.cryptoBenchmarks, overview.rwaAssets, quantities]);
+  }, [overview.cryptoBenchmarks, overview.rwaAssets, effectiveQuantities]);
+
+  // Display only active holdings (units > 0) or the row currently being edited
+  const activePositions = useMemo(
+    () => catalogPositions.filter((p) => p.quantity > 0 || p.id === editingId),
+    [catalogPositions, editingId]
+  );
+
+  const addableRwas = useMemo(
+    () =>
+      catalogPositions.filter(
+        (p) => p.sleeve === "rwa" && p.quantity <= 0 && p.id !== editingId
+      ),
+    [catalogPositions, editingId]
+  );
+
+  const addableCryptos = useMemo(
+    () =>
+      catalogPositions.filter(
+        (p) => p.sleeve === "crypto" && p.quantity <= 0 && p.id !== editingId
+      ),
+    [catalogPositions, editingId]
+  );
 
   const portfolio = useMemo(() => {
-    const valued = availablePositions.map((p) => ({
+    const valued = activePositions.map((p) => ({
       ...p,
       valueUsd: Math.max(0, p.quantity) * p.price,
     }));
@@ -128,25 +256,69 @@ export function PortfolioLabView({ overview, onInspectRwa }: PortfolioLabViewPro
       largestRwa,
       largestRwaShareOfRwa,
     };
-  }, [availablePositions]);
+  }, [activePositions]);
 
   function applyPreset(key: string) {
+    setEditingId(null);
+    setEditingDraft("");
     setActivePreset(key);
-    setQuantities(PRESETS[key].quantities);
   }
 
-  function updateQty(symbol: string, raw: string) {
-    const num = Number(raw);
+  function commitQuantity(positionId: string, nextValue: number) {
+    const base = activePreset === "custom" ? customQuantities : presetQuantities;
+    const updated = { ...base };
+    if (Number.isFinite(nextValue) && nextValue > 0) {
+      updated[positionId] = nextValue;
+    } else {
+      delete updated[positionId];
+    }
     setActivePreset("custom");
-    setQuantities((prev) => ({
-      ...prev,
-      [symbol]: Number.isFinite(num) && num >= 0 ? num : 0,
-    }));
+    setCustomQuantities(updated);
   }
+
+  function handleFocusQty(positionId: string, currentQty: number) {
+    setEditingId(positionId);
+    setEditingDraft(formatDotDecimal(currentQty));
+  }
+
+  function handleChangeQty(positionId: string, raw: string) {
+    const clean = sanitizeDecimalDraft(raw);
+    setEditingDraft(clean);
+    const parsed = Number.parseFloat(clean);
+    if (clean === "" || !Number.isFinite(parsed) || parsed <= 0) {
+      commitQuantity(positionId, 0);
+    } else {
+      commitQuantity(positionId, parsed);
+    }
+  }
+
+  function handleBlurQty() {
+    setEditingId(null);
+    setEditingDraft("");
+  }
+
+  function handleRemoveRow(positionId: string) {
+    if (editingId === positionId) {
+      setEditingId(null);
+      setEditingDraft("");
+    }
+    commitQuantity(positionId, 0);
+  }
+
+  function handleAddAsset() {
+    if (!assetToAdd) return;
+    const target = catalogPositions.find((p) => p.id === assetToAdd);
+    if (!target) return;
+    const defaultUnits = roundPresetUnits(2_500, target.price);
+    commitQuantity(target.id, defaultUnits);
+    setAssetToAdd("");
+  }
+
+  const hasAddableOptions = addableRwas.length > 0 || addableCryptos.length > 0;
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-col justify-between gap-3 md:flex-row md:items-end">
+      <div className="flex flex-col justify-between gap-3 xl:flex-row xl:items-end">
         <div>
           <h1 className="text-xl font-semibold tracking-tight text-slate-50">
             Hybrid Crypto + Tokenized TradFi Portfolio Lab
@@ -159,13 +331,14 @@ export function PortfolioLabView({ overview, onInspectRwa }: PortfolioLabViewPro
           </p>
         </div>
 
-        <div className="flex flex-wrap gap-1.5">
+        <div className="flex shrink-0 flex-wrap gap-1.5">
           {Object.entries(PRESETS).map(([key, preset]) => (
             <button
               key={key}
               id={`preset-${key}`}
               type="button"
               onClick={() => applyPreset(key)}
+              title={preset.desc}
               className={`rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors ${
                 activePreset === key
                   ? "bg-[#eab308] text-[#090c10]"
@@ -188,7 +361,8 @@ export function PortfolioLabView({ overview, onInspectRwa }: PortfolioLabViewPro
             {formatCurrency(portfolio.totalNav)}
           </div>
           <div className="mt-1 text-xs text-slate-500">
-            Real-time USD valuation across both sleeves
+            <span className="num text-slate-300">{portfolio.valued.length}</span> active position
+            {portfolio.valued.length === 1 ? "" : "s"} across both sleeves
           </div>
         </div>
 
@@ -236,13 +410,60 @@ export function PortfolioLabView({ overview, onInspectRwa }: PortfolioLabViewPro
       </section>
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
-        {/* Left 8 cols: Interactive Position Editor */}
+        {/* Left 8 cols: Active Holdings Editor (units > 0 only) */}
         <section className="terminal-panel overflow-hidden rounded-lg lg:col-span-8">
-          <div className="flex items-center justify-between border-b border-slate-200/[0.08] px-4 py-3">
-            <h2 className="text-xs font-semibold tracking-wider text-slate-200 uppercase">
-              Portfolio Holdings Editor
-            </h2>
-            <span className="text-xs text-slate-500">Adjust unit quantities to rebalance live</span>
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200/[0.08] px-4 py-3">
+            <div>
+              <h2 className="text-xs font-semibold tracking-wider text-slate-200 uppercase">
+                Active Portfolio Holdings ({portfolio.valued.length})
+              </h2>
+              <span className="text-xs text-slate-500">
+                Showing funded positions (<code className="text-slate-400">units &gt; 0</code>) ·
+                decimal separator <code className="text-slate-400">.</code>
+              </span>
+            </div>
+
+            {hasAddableOptions && (
+              <div className="flex items-center gap-1.5">
+                <select
+                  id="select-add-rwa"
+                  aria-label="Add RWA or crypto asset to portfolio"
+                  value={assetToAdd}
+                  onChange={(e) => setAssetToAdd(e.target.value)}
+                  className="num max-w-56 rounded-md border border-slate-200/[0.12] bg-[#0a0e14] px-2 py-1 text-xs text-slate-200 focus:border-[#eab308]/60 focus:outline-none"
+                >
+                  <option value="">+ Add RWA ({addableRwas.length})...</option>
+                  {addableRwas.length > 0 && (
+                    <optgroup label="Tokenized RWAs">
+                      {addableRwas.map((r) => (
+                        <option key={r.id} value={r.id}>
+                          {r.symbol} — {r.name}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                  {addableCryptos.length > 0 && (
+                    <optgroup label="Crypto Benchmarks">
+                      {addableCryptos.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.symbol} — {c.name}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                </select>
+                <button
+                  id="btn-add-rwa"
+                  type="button"
+                  onClick={handleAddAsset}
+                  disabled={!assetToAdd}
+                  className="inline-flex items-center gap-1 rounded-md border border-slate-200/[0.12] bg-[#151d28] px-2.5 py-1 text-xs font-medium text-slate-200 hover:border-[#eab308]/50 hover:text-white disabled:opacity-40"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  Add
+                </button>
+              </div>
+            )}
           </div>
 
           <div className="terminal-scroll overflow-x-auto">
@@ -255,11 +476,14 @@ export function PortfolioLabView({ overview, onInspectRwa }: PortfolioLabViewPro
                   <th className="px-4 py-2.5 text-right">Units</th>
                   <th className="px-4 py-2.5 text-right">Position Value</th>
                   <th className="px-4 py-2.5 text-right">Weight</th>
+                  <th className="w-10 px-2 py-2.5 text-center" aria-label="Remove" />
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200/[0.05]">
                 {portfolio.valued.map((row) => {
                   const weight = portfolio.totalNav > 0 ? (row.valueUsd / portfolio.totalNav) * 100 : 0;
+                  const displayValue =
+                    editingId === row.id ? editingDraft : formatDotDecimal(row.quantity);
                   return (
                     <tr key={row.id} className="hover:bg-[#161e29]">
                       <td className="px-4 py-2.5">
@@ -280,7 +504,7 @@ export function PortfolioLabView({ overview, onInspectRwa }: PortfolioLabViewPro
                       </td>
                       <td className="px-4 py-2.5">
                         <span
-                          className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${
+                          className={`inline-block whitespace-nowrap rounded px-1.5 py-0.5 text-[10px] font-medium ${
                             row.sleeve === "crypto"
                               ? "bg-sky-500/15 text-sky-300"
                               : "bg-[#eab308]/15 text-[#eab308]"
@@ -294,12 +518,20 @@ export function PortfolioLabView({ overview, onInspectRwa }: PortfolioLabViewPro
                       </td>
                       <td className="px-4 py-2 text-right">
                         <input
-                          id={`qty-${row.symbol}`}
-                          type="number"
-                          min="0"
-                          step="any"
-                          value={row.quantity}
-                          onChange={(e) => updateQty(row.symbol, e.target.value)}
+                          id={`qty-${row.id}`}
+                          type="text"
+                          inputMode="decimal"
+                          lang="en"
+                          spellCheck={false}
+                          value={displayValue}
+                          onFocus={() => handleFocusQty(row.id, row.quantity)}
+                          onChange={(e) => handleChangeQty(row.id, e.target.value)}
+                          onBlur={handleBlurQty}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              (e.currentTarget as HTMLInputElement).blur();
+                            }
+                          }}
                           className="num w-24 rounded border border-slate-200/[0.12] bg-[#0a0e14] px-2 py-1 text-right text-xs text-slate-100 focus:border-[#eab308]/60 focus:outline-none"
                         />
                       </td>
@@ -309,9 +541,30 @@ export function PortfolioLabView({ overview, onInspectRwa }: PortfolioLabViewPro
                       <td className="num px-4 py-2.5 text-right text-slate-400">
                         {formatPercent(weight)}
                       </td>
+                      <td className="px-2 py-2 text-center">
+                        <button
+                          id={`remove-${row.id}`}
+                          type="button"
+                          onClick={() => handleRemoveRow(row.id)}
+                          aria-label={`Remove ${row.symbol}`}
+                          title={`Remove ${row.symbol}`}
+                          className="inline-flex h-6 w-6 items-center justify-center rounded text-slate-500 transition-colors hover:bg-red-500/15 hover:text-red-300"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </td>
                     </tr>
                   );
                 })}
+
+                {portfolio.valued.length === 0 && (
+                  <tr>
+                    <td colSpan={7} className="px-4 py-10 text-center text-slate-400">
+                      No active positions. Select a preset above or use{" "}
+                      <strong className="text-slate-200">+ Add RWA</strong> to build a custom blend.
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>

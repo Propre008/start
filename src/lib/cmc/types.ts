@@ -246,6 +246,8 @@ export interface OverviewResponse {
   generatedAt: string;
 }
 
+export type TokenParityStatus = "INCLUDED" | "UNIT_MISMATCH" | "NO_LIQUIDITY";
+
 export interface TokenParityRow {
   symbol: string;
   name: string;
@@ -259,6 +261,7 @@ export interface TokenParityRow {
   marketCapSharePct: number;
   volumeSharePct: number;
   turnoverPct: number;
+  parityStatus: TokenParityStatus;
 }
 
 export interface ParityAnalytics {
@@ -268,6 +271,8 @@ export interface ParityAnalytics {
   spreadBps: number;
   grade: "TIGHT" | "MODERATE" | "WIDE" | "SINGLE_ISSUER";
   issuerCount: number;
+  comparableTokenCount: number;
+  excludedTokenCount: number;
   hhiScore: number;
   concentrationLabel: "DIVERSIFIED" | "MODERATE" | "CONCENTRATED";
   dominantIssuer: string;
@@ -299,6 +304,8 @@ export interface RwaDetailResponse {
   quote: RwaQuoteLatestItem;
   info: RwaInfoItem | null;
   pairs: RwaMarketPairsData;
+  pairsPlanRestricted?: boolean;
+  pairsNote?: string;
   parity: ParityAnalytics;
   fragmentation: VenueFragmentation;
   traces: ApiTraceEntry[];

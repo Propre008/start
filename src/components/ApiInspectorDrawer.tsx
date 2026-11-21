@@ -1,14 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ChevronDown, ChevronRight, KeyRound, X } from "lucide-react";
-import type { ApiTraceEntry, KeyInfoSummary } from "@/lib/cmc/types";
+import type { ApiTraceEntry, DataSourceMode, KeyInfoSummary } from "@/lib/cmc/types";
 
 interface ApiInspectorDrawerProps {
   open: boolean;
   onClose: () => void;
   traces: ApiTraceEntry[];
   keyInfo: KeyInfoSummary | null;
+  mode: DataSourceMode;
   proKeyConfigured: boolean;
   sessionKey: string;
   onApplySessionKey: (key: string) => void;
@@ -19,7 +20,7 @@ const CMC_ENDPOINT_CATALOG = [
   { path: "/v5/real-world-assets/assets/list", group: "RWA v5", plan: "Basic+" },
   { path: "/v5/real-world-assets/quotes/latest", group: "RWA v5", plan: "Basic+" },
   { path: "/v5/real-world-assets/info", group: "RWA v5", plan: "Basic+" },
-  { path: "/v5/real-world-assets/market-pairs/list", group: "RWA v5", plan: "Basic+" },
+  { path: "/v5/real-world-assets/market-pairs/list", group: "RWA v5", plan: "Startup+" },
   { path: "/v5/real-world-assets/issuers/list", group: "RWA v5", plan: "Basic+" },
   { path: "/v5/real-world-assets/issuers", group: "RWA v5", plan: "Basic+" },
   { path: "/v3/cryptocurrency/quotes/latest", group: "Crypto v3", plan: "Keyless / Basic+" },
@@ -28,11 +29,16 @@ const CMC_ENDPOINT_CATALOG = [
   { path: "/v1/key/info", group: "Utilities v1", plan: "Basic+" },
 ];
 
-export function ApiInspectorDrawer({
-  open,
+export function ApiInspectorDrawer(props: ApiInspectorDrawerProps) {
+  if (!props.open) return null;
+  return <ApiInspectorDrawerContent {...props} />;
+}
+
+function ApiInspectorDrawerContent({
   onClose,
   traces,
   keyInfo,
+  mode,
   proKeyConfigured,
   sessionKey,
   onApplySessionKey,
@@ -40,11 +46,45 @@ export function ApiInspectorDrawer({
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [keyDraft, setKeyDraft] = useState(sessionKey);
 
-  if (!open) return null;
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onClose]);
+
+  const isLivePro = mode === "live_pro";
+  const keyFailed = (proKeyConfigured || Boolean(sessionKey)) && !isLivePro;
+
+  const statusBadge = isLivePro
+    ? {
+        label: `ACTIVE (${keyInfo?.plan_name ?? "Pro API"})`,
+        className: "bg-emerald-500/15 text-emerald-300",
+      }
+    : keyFailed
+      ? {
+          label: "PRO KEY REJECTED / FALLBACK",
+          className: "bg-red-500/15 text-red-300",
+        }
+      : {
+          label: "KEYLESS + SNAPSHOT MODE",
+          className: "bg-amber-500/15 text-amber-300",
+        };
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-black/65 backdrop-blur-xs">
-      <div className="terminal-scroll flex h-full w-full max-w-2xl flex-col overflow-y-auto border-l border-slate-200/[0.1] bg-[#0b0f15] shadow-2xl">
+    <div
+      className="fixed inset-0 z-50 flex justify-end bg-black/65 backdrop-blur-xs"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Live CoinMarketCap API Evidence Inspector"
+        className="terminal-scroll flex h-full w-full max-w-2xl flex-col overflow-y-auto border-l border-slate-200/[0.1] bg-[#0b0f15] shadow-2xl"
+      >
         {/* Header */}
         <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200/[0.08] bg-[#0b0f15]/95 px-5 py-4 backdrop-blur-md">
           <div>
@@ -59,6 +99,7 @@ export function ApiInspectorDrawer({
             id="btn-close-inspector"
             type="button"
             onClick={onClose}
+            aria-label="Close API Inspector"
             className="rounded-md p-1.5 text-slate-400 hover:bg-slate-200/[0.08] hover:text-slate-100"
           >
             <X className="h-4 w-4" />
@@ -73,16 +114,8 @@ export function ApiInspectorDrawer({
                 <KeyRound className="h-3.5 w-3.5 text-[#eab308]" />
                 <span>API Key Status</span>
               </div>
-              <span
-                className={`num rounded px-2 py-0.5 text-[11px] font-medium ${
-                  proKeyConfigured || sessionKey
-                    ? "bg-emerald-500/15 text-emerald-300"
-                    : "bg-amber-500/15 text-amber-300"
-                }`}
-              >
-                {proKeyConfigured || sessionKey
-                  ? `ACTIVE (${keyInfo?.plan_name ?? "Pro API"})`
-                  : "KEYLESS + SNAPSHOT MODE"}
+              <span className={`num rounded px-2 py-0.5 text-[11px] font-medium ${statusBadge.className}`}>
+                {statusBadge.label}
               </span>
             </div>
 
@@ -91,13 +124,13 @@ export function ApiInspectorDrawer({
                 <div className="rounded bg-[#0a0e14] p-2">
                   <div className="text-[10px] text-slate-500 uppercase">Credits Used</div>
                   <div className="num mt-0.5 font-semibold text-slate-100">
-                    {keyInfo.credits_used_monthly.toLocaleString()}
+                    {keyInfo.credits_used_monthly.toLocaleString("en-US")}
                   </div>
                 </div>
                 <div className="rounded bg-[#0a0e14] p-2">
                   <div className="text-[10px] text-slate-500 uppercase">Monthly Limit</div>
                   <div className="num mt-0.5 font-semibold text-slate-100">
-                    {keyInfo.credit_limit_monthly.toLocaleString()}
+                    {keyInfo.credit_limit_monthly.toLocaleString("en-US")}
                   </div>
                 </div>
                 <div className="rounded bg-[#0a0e14] p-2">
@@ -109,7 +142,13 @@ export function ApiInspectorDrawer({
               </div>
             )}
 
-            <div className="mt-3 border-t border-slate-200/[0.08] pt-3">
+            <form
+              className="mt-3 border-t border-slate-200/[0.08] pt-3"
+              onSubmit={(e) => {
+                e.preventDefault();
+                onApplySessionKey(keyDraft.trim());
+              }}
+            >
               <label htmlFor="input-session-cmc-key" className="block text-[11px] text-slate-400">
                 Optional Session Key (memory-only, never stored or logged — lets judges verify live
                 RWA v5 calls directly):
@@ -125,8 +164,7 @@ export function ApiInspectorDrawer({
                 />
                 <button
                   id="btn-apply-session-key"
-                  type="button"
-                  onClick={() => onApplySessionKey(keyDraft.trim())}
+                  type="submit"
                   className="rounded-md bg-[#eab308] px-3 py-1.5 text-xs font-semibold text-[#090c10] hover:bg-[#facc15]"
                 >
                   Apply
@@ -144,7 +182,7 @@ export function ApiInspectorDrawer({
                   </button>
                 )}
               </div>
-            </div>
+            </form>
           </section>
 
           {/* Executed Request Traces */}

@@ -41,8 +41,9 @@ function redactPayload(payload) {
         clone.data[`_${k}_truncated_from`] = v.length;
       }
     }
-  } else if (Array.isArray(clone.data) && clone.data.length > 3) {
-    clone.data = clone.data.slice(0, 3);
+  } else if (Array.isArray(clone.data) && clone.data.length > 4) {
+    clone._data_truncated_from = clone.data.length;
+    clone.data = clone.data.slice(0, 4);
   }
   return clone;
 }
@@ -56,8 +57,14 @@ async function callEndpoint({ name, pathWithQuery, apiKey, keyless }) {
   if (apiKey) headers["X-CMC_PRO_API_KEY"] = apiKey;
 
   const startedAt = Date.now();
-  const res = await fetch(url, { headers });
-  const json = await res.json();
+  const res = await fetch(url, { headers, signal: AbortSignal.timeout(15_000) });
+  const rawText = await res.text();
+  let json = null;
+  try {
+    json = JSON.parse(rawText);
+  } catch {
+    json = null;
+  }
   const elapsedMs = json?.status?.elapsed ?? Date.now() - startedAt;
   const ok = res.ok && String(json?.status?.error_code) === "0";
 
@@ -70,9 +77,9 @@ async function callEndpoint({ name, pathWithQuery, apiKey, keyless }) {
     elapsedMs,
     creditCount: json?.status?.credit_count ?? 0,
     errorCode: json?.status?.error_code ?? null,
-    errorMessage: json?.status?.error_message ?? null,
+    errorMessage: json?.status?.error_message ?? (json ? null : rawText.slice(0, 200)),
     timestamp: json?.status?.timestamp ?? new Date().toISOString(),
-    responseSample: redactPayload(json),
+    responseSample: json ? redactPayload(json) : { rawPreview: rawText.slice(0, 200) },
   };
 }
 

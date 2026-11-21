@@ -123,7 +123,7 @@ export function ScreenerView({ overview, onInspectRwa }: ScreenerViewProps) {
           </p>
         </div>
         <div className="num text-xs text-slate-500">
-          Catalog indexed: {overview.rwaMapTotal.toLocaleString()} RWA IDs
+          Catalog indexed: {overview.rwaMapTotal.toLocaleString("en-US")} RWA IDs
         </div>
       </div>
 
@@ -351,7 +351,7 @@ export function ScreenerView({ overview, onInspectRwa }: ScreenerViewProps) {
                       </div>
                     </td>
                     <td className="px-4 py-3">
-                      <span className="inline-flex items-center gap-1.5 rounded bg-slate-200/[0.05] px-2 py-0.5 text-[11px] text-slate-300">
+                      <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded bg-slate-200/[0.05] px-2 py-0.5 text-[11px] text-slate-300">
                         <span
                           className="h-1.5 w-1.5 rounded-full"
                           style={{

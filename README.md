@@ -16,21 +16,21 @@ ParityLens turns raw CoinMarketCap RWA v5 and macro endpoints into four cohesive
 
 ## Explicit CoinMarketCap API Endpoints Used (11 Total)
 
-All 11 integrated endpoints are **compatible with both Basic and Startup plans**, ensuring the deployed application stays fully operational after the hackathon's Startup window closes and during the December 10–25 judging period.
+**10 of 11 integrated endpoints run live on the free Basic plan** (including 6 of 7 RWA v5 endpoints), ensuring the deployed application stays fully operational after the hackathon's Startup window closes and during the December 10–25 judging period. The 11th endpoint (`/v5/real-world-assets/market-pairs/list`) unlocks on **Startup+** plans and gracefully degrades on Basic keys (HTTP `403` / code `1006`) to live per-token 24h liquidity shares from `/v5/real-world-assets/quotes/latest`.
 
-| # | Endpoint | Category | Purpose in ParityLens |
-| :- | :--- | :--- | :--- |
-| 1 | `GET /v5/real-world-assets/map` | RWA v5 | Catalog index & canonical `rwa_id` count |
-| 2 | `GET /v5/real-world-assets/assets/list` | RWA v5 | Ranked RWA screener, asset-class breakdown, average prices & caps |
-| 3 | `GET /v5/real-world-assets/quotes/latest` | RWA v5 | Per-asset competing `tokens[]` by issuer + `tradfi_markets[]` for parity spread & HHI math |
-| 4 | `GET /v5/real-world-assets/info` | RWA v5 | Underlying reference metadata (`primary_exchange`, `industry`, `cik`, description) |
-| 5 | `GET /v5/real-world-assets/market-pairs/list` | RWA v5 | Active CEX/DEX trading pairs & cross-venue liquidity fragmentation |
-| 6 | `GET /v5/real-world-assets/issuers/list` | RWA v5 | Active issuer directory and issued token counts |
-| 7 | `GET /v5/real-world-assets/issuers` | RWA v5 | Single-issuer drill-down returning linked on-chain tokens |
-| 8 | `GET /v3/cryptocurrency/quotes/latest` | Crypto v3 | Live USD quotes by stable CMC ID (`1,1027,5426,825`) for macro ribbon & Hybrid Portfolio |
-| 9 | `GET /v1/global-metrics/quotes/latest` | Global v1 | Total crypto market cap, 24h volume & BTC/ETH dominance (RWA share of crypto) |
-| 10 | `GET /v3/fear-and-greed/latest` | Sentiment v3 | CoinMarketCap proprietary Fear & Greed Index for portfolio macro context |
-| 11 | `GET /v1/key/info` | Utilities v1 | Live plan tier, monthly credit consumption & rate-limit telemetry |
+| # | Endpoint | Category | Plan | Purpose in ParityLens |
+| :- | :--- | :--- | :--- | :--- |
+| 1 | `GET /v5/real-world-assets/map` | RWA v5 | Basic+ (0 cr) | Catalog index & canonical `rwa_id` count |
+| 2 | `GET /v5/real-world-assets/assets/list` | RWA v5 | Basic+ | Ranked RWA screener, asset-class breakdown, average prices & caps |
+| 3 | `GET /v5/real-world-assets/quotes/latest` | RWA v5 | Basic+ | Per-asset competing `tokens[]` by issuer + `tradfi_markets[]` for parity spread & HHI math |
+| 4 | `GET /v5/real-world-assets/info` | RWA v5 | Basic+ | Underlying reference metadata (`primary_exchange`, `industry`, `cik`, description) |
+| 5 | `GET /v5/real-world-assets/market-pairs/list` | RWA v5 | Startup+ | Active CEX/DEX trading pairs & cross-venue liquidity fragmentation (graceful Basic fallback) |
+| 6 | `GET /v5/real-world-assets/issuers/list` | RWA v5 | Basic+ | Active issuer directory and issued token counts |
+| 7 | `GET /v5/real-world-assets/issuers` | RWA v5 | Basic+ | Single-issuer drill-down returning linked on-chain tokens |
+| 8 | `GET /v3/cryptocurrency/quotes/latest` | Crypto v3 | Keyless / Basic+ | Live USD quotes by stable CMC ID (`1,1027,5426,825`) for macro ribbon & Hybrid Portfolio |
+| 9 | `GET /v1/global-metrics/quotes/latest` | Global v1 | Keyless / Basic+ | Total crypto market cap, 24h volume & BTC/ETH dominance (RWA share of crypto) |
+| 10 | `GET /v3/fear-and-greed/latest` | Sentiment v3 | Keyless / Basic+ | CoinMarketCap proprietary Fear & Greed Index for portfolio macro context |
+| 11 | `GET /v1/key/info` | Utilities v1 | Basic+ (0 cr) | Live plan tier, monthly credit consumption & rate-limit telemetry |
 
 ---
 

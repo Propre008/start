@@ -11,9 +11,9 @@ export async function GET(
   context: { params: Promise<{ id: string }> }
 ) {
   const { id } = await context.params;
-  if (!id || !/^[0-9a-f]{24}$/i.test(id)) {
+  if (!id || !/^[a-zA-Z0-9_-]{1,64}$/.test(id)) {
     return NextResponse.json(
-      { error: "Invalid issuer_id parameter. Must be a 24-character hex identifier." },
+      { error: "Invalid issuer_id parameter. Must be an alphanumeric identifier (1-64 chars)." },
       { status: 400 }
     );
   }
@@ -27,13 +27,24 @@ export async function GET(
     fetchRwaAssetsList(apiKey, { limit: 100 }, bypassCache),
   ]);
 
+  const traces = [issuerRes.trace, rwaListRes.trace];
+
+  if (!issuerRes.data) {
+    return NextResponse.json(
+      {
+        error: `Issuer ${id} could not be retrieved from CoinMarketCap or reference snapshots.`,
+        traces,
+      },
+      { status: 404, headers: { "Cache-Control": "no-store" } }
+    );
+  }
+
   const rwaById = new Map(rwaListRes.data.rwa_assets.map((a) => [a.rwa_id, a]));
-  const linkedAssets = issuerRes.data.tokens.map((token) => ({
+  const linkedAssets = (issuerRes.data.tokens ?? []).map((token) => ({
     ...token,
     rwa: rwaById.get(token.rwa_id),
   }));
 
-  const traces = [issuerRes.trace];
   const mode: DataSourceMode = traces.some((t) => t.mode === "live_pro")
     ? "live_pro"
     : "snapshot";
@@ -46,5 +57,7 @@ export async function GET(
     generatedAt: new Date().toISOString(),
   };
 
-  return NextResponse.json(payload);
+  return NextResponse.json(payload, {
+    headers: overrideKey ? { "Cache-Control": "no-store" } : undefined,
+  });
 }

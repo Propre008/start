@@ -3,12 +3,17 @@ import type {
   RwaMarketPairsData,
   RwaQuoteLatestItem,
   TokenParityRow,
+  TokenParityStatus,
   VenueFragmentation,
 } from "@/lib/cmc/types";
 
 /**
  * Computes institutional parity, spread, and issuer-concentration metrics
  * for a tokenized Real-World Asset across all competing on-chain issuers.
+ *
+ * Automatically identifies and excludes unit-mismatched fractional tokens
+ * (e.g., 1-gram gold tokens priced ~1/31.1x vs 1-troy-oz benchmark) and
+ * zero-liquidity derivative placeholders from inter-issuer spread calculations.
  */
 export function computeParityMetrics(quote: RwaQuoteLatestItem): ParityAnalytics {
   const tokens = quote.tokens ?? [];
@@ -19,22 +24,35 @@ export function computeParityMetrics(quote: RwaQuoteLatestItem): ParityAnalytics
         ? tokens.reduce((sum, t) => sum + (t.price || 0), 0) / tokens.length
         : 0;
 
-  const pricedTokens = tokens.filter((t) => Number.isFinite(t.price) && t.price > 0);
-  const prices = pricedTokens.map((t) => t.price);
+  const hasLiquidTokens = tokens.some(
+    (t) => (t.market_cap || 0) > 0 || (t.volume_24h || 0) > 0
+  );
+
+  const classifyToken = (t: RwaQuoteLatestItem["tokens"][number]): TokenParityStatus => {
+    if (!Number.isFinite(t.price) || t.price <= 0) return "NO_LIQUIDITY";
+    if (hasLiquidTokens && (t.market_cap || 0) <= 0 && (t.volume_24h || 0) <= 0) {
+      return "NO_LIQUIDITY";
+    }
+    if (averagePrice > 0 && (t.price < averagePrice * 0.2 || t.price > averagePrice * 5)) {
+      return "UNIT_MISMATCH";
+    }
+    return "INCLUDED";
+  };
+
+  const classified = tokens.map((token) => ({
+    token,
+    parityStatus: classifyToken(token),
+  }));
+
+  const comparableTokens = classified
+    .filter((c) => c.parityStatus === "INCLUDED")
+    .map((c) => c.token);
+  const pricedFallback = tokens.filter((t) => Number.isFinite(t.price) && t.price > 0);
+  const spreadSample = comparableTokens.length > 0 ? comparableTokens : pricedFallback;
+
+  const prices = spreadSample.map((t) => t.price);
   const minPrice = prices.length > 0 ? Math.min(...prices) : averagePrice;
   const maxPrice = prices.length > 0 ? Math.max(...prices) : averagePrice;
-
-  const spreadBps =
-    pricedTokens.length >= 2 && averagePrice > 0
-      ? ((maxPrice - minPrice) / averagePrice) * 10_000
-      : 0;
-
-  let grade: ParityAnalytics["grade"] = "SINGLE_ISSUER";
-  if (pricedTokens.length >= 2) {
-    if (spreadBps < 15) grade = "TIGHT";
-    else if (spreadBps <= 50) grade = "MODERATE";
-    else grade = "WIDE";
-  }
 
   const totalTokenMarketCap = tokens.reduce((sum, t) => sum + Math.max(0, t.market_cap || 0), 0);
   const totalTokenVolume24h = tokens.reduce((sum, t) => sum + Math.max(0, t.volume_24h || 0), 0);
@@ -44,10 +62,34 @@ export function computeParityMetrics(quote: RwaQuoteLatestItem): ParityAnalytics
   const volDenominator =
     totalTokenVolume24h > 0 ? totalTokenVolume24h : Math.max(1, quote.tokenized_volume_24h || 1);
 
-  const issuerCapMap = new Map<string, number>();
+  const issuerCapMap = new Map<string, { name: string; cap: number }>();
   for (const token of tokens) {
-    const key = token.issuer_name || "Unknown Issuer";
-    issuerCapMap.set(key, (issuerCapMap.get(key) ?? 0) + Math.max(0, token.market_cap || 0));
+    if (hasLiquidTokens && (token.market_cap || 0) <= 0 && (token.volume_24h || 0) <= 0) {
+      continue;
+    }
+    const key = token.issuer_id || token.issuer_name || "Unknown Issuer";
+    const prev = issuerCapMap.get(key);
+    issuerCapMap.set(key, {
+      name: prev?.name || token.issuer_name || "Unknown Issuer",
+      cap: (prev?.cap ?? 0) + Math.max(0, token.market_cap || 0),
+    });
+  }
+
+  const pricedIssuerKeys = new Set(
+    spreadSample.map((t) => t.issuer_id || t.issuer_name || "Unknown Issuer")
+  );
+  const hasMultiIssuerPricing = pricedIssuerKeys.size >= 2;
+
+  const spreadBps =
+    hasMultiIssuerPricing && averagePrice > 0
+      ? ((maxPrice - minPrice) / averagePrice) * 10_000
+      : 0;
+
+  let grade: ParityAnalytics["grade"] = "SINGLE_ISSUER";
+  if (hasMultiIssuerPricing) {
+    if (spreadBps < 15) grade = "TIGHT";
+    else if (spreadBps <= 50) grade = "MODERATE";
+    else grade = "WIDE";
   }
 
   let hhiScore = 0;
@@ -55,8 +97,8 @@ export function computeParityMetrics(quote: RwaQuoteLatestItem): ParityAnalytics
   let dominantIssuerSharePct = 0;
 
   if (issuerCapMap.size > 0) {
-    const issuerSum = Array.from(issuerCapMap.values()).reduce((a, b) => a + b, 0);
-    for (const [issuerName, cap] of issuerCapMap.entries()) {
+    const issuerSum = Array.from(issuerCapMap.values()).reduce((a, b) => a + b.cap, 0);
+    for (const { name: issuerName, cap } of issuerCapMap.values()) {
       const sharePct = issuerSum > 0 ? (cap / issuerSum) * 100 : 100 / issuerCapMap.size;
       hhiScore += sharePct * sharePct;
       if (sharePct > dominantIssuerSharePct) {
@@ -70,8 +112,8 @@ export function computeParityMetrics(quote: RwaQuoteLatestItem): ParityAnalytics
   const concentrationLabel: ParityAnalytics["concentrationLabel"] =
     roundedHhi >= 5000 ? "CONCENTRATED" : roundedHhi >= 2500 ? "MODERATE" : "DIVERSIFIED";
 
-  const rows: TokenParityRow[] = tokens
-    .map((t) => {
+  const rows: TokenParityRow[] = classified
+    .map(({ token: t, parityStatus }) => {
       const deviationBps =
         averagePrice > 0 && t.price > 0 ? ((t.price - averagePrice) / averagePrice) * 10_000 : 0;
       const marketCapSharePct = (Math.max(0, t.market_cap || 0) / mcapDenominator) * 100;
@@ -83,6 +125,7 @@ export function computeParityMetrics(quote: RwaQuoteLatestItem): ParityAnalytics
         marketCapSharePct,
         volumeSharePct,
         turnoverPct,
+        parityStatus,
       };
     })
     .sort((a, b) => b.market_cap - a.market_cap);
@@ -98,6 +141,8 @@ export function computeParityMetrics(quote: RwaQuoteLatestItem): ParityAnalytics
     spreadBps,
     grade,
     issuerCount: issuerCapMap.size,
+    comparableTokenCount: comparableTokens.length,
+    excludedTokenCount: tokens.length - comparableTokens.length,
     hhiScore: roundedHhi,
     concentrationLabel,
     dominantIssuer,
@@ -121,15 +166,17 @@ export function computeVenueFragmentation(pairsData: RwaMarketPairsData): VenueF
   >();
 
   let totalVenueVolume24h = 0;
-  const venuePrices: number[] = [];
+  const pricedPairs: Array<{ price: number; volume: number }> = [];
 
   for (const pair of pairs) {
     const usdQuote = pair.quotes?.find((q) => q.symbol === "USD") ?? pair.quotes?.[0];
-    const price = usdQuote?.price ?? pair.exchange_reported_quotes?.price ?? 0;
-    const volume = usdQuote?.volume_24h ?? pair.exchange_reported_quotes?.volume_24h_quote ?? 0;
+    const rawPrice = usdQuote?.price ?? pair.exchange_reported_quotes?.price ?? 0;
+    const rawVolume = usdQuote?.volume_24h ?? pair.exchange_reported_quotes?.volume_24h_quote ?? 0;
+    const price = Number.isFinite(rawPrice) && rawPrice > 0 ? rawPrice : 0;
+    const volume = Number.isFinite(rawVolume) && rawVolume > 0 ? rawVolume : 0;
 
-    if (price > 0) venuePrices.push(price);
-    totalVenueVolume24h += Math.max(0, volume);
+    if (price > 0) pricedPairs.push({ price, volume });
+    totalVenueVolume24h += volume;
 
     const exchangeName = pair.exchange?.name || "Unknown Venue";
     const prev = venueMap.get(exchangeName) ?? {
@@ -140,8 +187,8 @@ export function computeVenueFragmentation(pairsData: RwaMarketPairsData): VenueF
     };
     venueMap.set(exchangeName, {
       pairCount: prev.pairCount + 1,
-      volume24h: prev.volume24h + Math.max(0, volume),
-      weightedPriceSum: prev.weightedPriceSum + price * Math.max(0, volume),
+      volume24h: prev.volume24h + volume,
+      weightedPriceSum: prev.weightedPriceSum + price * volume,
       simplePriceSum: prev.simplePriceSum + price,
     });
   }
@@ -163,12 +210,23 @@ export function computeVenueFragmentation(pairsData: RwaMarketPairsData): VenueF
 
   const topVenue = byExchange[0];
   let priceSpreadAcrossVenuesBps = 0;
-  if (venuePrices.length >= 2) {
-    const minP = Math.min(...venuePrices);
-    const maxP = Math.max(...venuePrices);
-    const avgP = venuePrices.reduce((a, b) => a + b, 0) / venuePrices.length;
-    if (avgP > 0) {
-      priceSpreadAcrossVenuesBps = ((maxP - minP) / avgP) * 10_000;
+  if (pricedPairs.length >= 2) {
+    // Ignore illiquid dust pairs when enough active venues exist so outliers do not skew spread
+    const minVolFloor =
+      totalVenueVolume24h > 0 ? Math.max(100, totalVenueVolume24h * 0.001) : 0;
+    const liquidPairs =
+      minVolFloor > 0 ? pricedPairs.filter((p) => p.volume >= minVolFloor) : pricedPairs;
+    const sample = liquidPairs.length >= 2 ? liquidPairs : pricedPairs;
+
+    const minP = Math.min(...sample.map((p) => p.price));
+    const maxP = Math.max(...sample.map((p) => p.price));
+    const sampleVol = sample.reduce((sum, p) => sum + p.volume, 0);
+    const refP =
+      sampleVol > 0
+        ? sample.reduce((sum, p) => sum + p.price * p.volume, 0) / sampleVol
+        : sample.reduce((sum, p) => sum + p.price, 0) / sample.length;
+    if (refP > 0) {
+      priceSpreadAcrossVenuesBps = ((maxP - minP) / refP) * 10_000;
     }
   }
 
